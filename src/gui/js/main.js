@@ -41,10 +41,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   initSettings();
   initTelemetryConsent();
   initClearCacheButton();
-  initTooltips();
   handleBboxInput();
   const localization = await getLocalization();
   await applyLocalization(localization);
+  initTooltips();
   updateFormatToggleUI(selectedWorldFormat);
   initFooter();
   initEasterEggs();
@@ -105,8 +105,10 @@ async function applyLocalization(localization) {
     "h2[data-localize='customization_settings']": "customization_settings",
     "span[data-localize='world_scale']": "world_scale",
     "span[data-localize='custom_bounding_box']": "custom_bounding_box",
-    // DEPRECATED: Ground level localization removed
-    // "label[data-localize='ground_level']": "ground_level",
+    "span[data-localize='ground_level']": "ground_level",
+    "span[data-localize='ground_level_measured']": "ground_level_measured",
+    "span[data-localize='ground_level_target']": "ground_level_target",
+    "button[id='ground-level-apply']": "ground_level_apply",
     "span[data-localize='language']": "language",
     "span[data-localize='generation_mode']": "generation_mode",
     "option[data-localize='mode_geo_terrain']": "mode_geo_terrain",
@@ -142,8 +144,7 @@ async function applyLocalization(localization) {
 
     // Placeholder strings
     "input[id='bbox-coords']": "placeholder_bbox",
-    // DEPRECATED: Ground level placeholder removed
-    // "input[id='ground-level']": "placeholder_ground"
+    "input[id='ground-level']": "placeholder_ground",
   };
 
   for (const selector in localizationElements) {
@@ -159,6 +160,22 @@ async function applyLocalization(localization) {
 
   // Update error messages
   window.localization = localization;
+  applyTooltipLocalization(localization);
+  if (window.refreshGroundLevelHelper) {
+    window.refreshGroundLevelHelper();
+  }
+}
+
+function applyTooltipLocalization(localization) {
+  document.querySelectorAll("[data-tooltip-key]").forEach((icon) => {
+    const key = icon.getAttribute("data-tooltip-key");
+    const text = localization[key];
+    if (!text) {
+      return;
+    }
+    icon.setAttribute("data-tooltip", text);
+    icon.setAttribute("aria-label", text);
+  });
 }
 
 // Function to initialize the footer with the current year and version
@@ -470,6 +487,74 @@ function initEasterEggs() {
   });
 }
 
+function clampGroundLevel(value) {
+  if (isNaN(value)) {
+    return -62;
+  }
+  if (value < -62) {
+    return -62;
+  }
+  if (value > 290) {
+    return 290;
+  }
+  return value;
+}
+
+// Stock Arnis default; helper assumes measured Y is from a world generated at this floor.
+const DEFAULT_GROUND_LEVEL = -62;
+
+function initGroundLevelHelper() {
+  const groundInput = document.getElementById("ground-level");
+  const measuredInput = document.getElementById("ground-level-measured");
+  const targetInput = document.getElementById("ground-level-target");
+  const resultRow = document.getElementById("ground-level-helper-result");
+  const resultText = document.getElementById("ground-level-helper-text");
+  const applyButton = document.getElementById("ground-level-apply");
+
+  if (!groundInput || !measuredInput || !targetInput || !resultRow || !resultText || !applyButton) {
+    return;
+  }
+
+  let recommended = null;
+
+  function formatRecommendText(value) {
+    const template = window.localization?.ground_level_recommend
+      || "Set ground level to {value}";
+    return template.replace("{value}", String(value));
+  }
+
+  function updateRecommendation() {
+    const measured = parseInt(measuredInput.value, 10);
+    const target = parseInt(targetInput.value, 10);
+    if (isNaN(measured) || isNaN(target)) {
+      recommended = null;
+      resultRow.hidden = true;
+      return;
+    }
+
+    // Shift = target - measured only; do not add the current ground-level field
+    // or Apply would stack the offset on every click.
+    recommended = clampGroundLevel(DEFAULT_GROUND_LEVEL + (target - measured));
+    resultText.textContent = formatRecommendText(recommended);
+    resultRow.hidden = false;
+  }
+
+  function applyRecommendation() {
+    if (recommended === null) {
+      return;
+    }
+    groundInput.value = String(recommended);
+  }
+
+  for (const el of [measuredInput, targetInput]) {
+    el.addEventListener("input", updateRecommendation);
+    el.addEventListener("change", updateRecommendation);
+  }
+  applyButton.addEventListener("click", applyRecommendation);
+
+  window.refreshGroundLevelHelper = updateRecommendation;
+}
+
 function initSettings() {
   // Settings
   const settingsModal = document.getElementById("settings-modal");
@@ -543,6 +628,8 @@ function initSettings() {
     updateRotation(parseFloat(rotationInput.value));
   });
   window.updateRotation = updateRotation;
+
+  initGroundLevelHelper();
 
   // World format toggle (Java/Bedrock/Luanti)
   initWorldFormatToggle();
@@ -1381,12 +1468,7 @@ async function startGeneration() {
     var aws_only_elevation = document.getElementById("aws-only-elevation-toggle").checked;
     var bake_lighting = document.getElementById("bake-lighting-toggle").checked;
     var scale = parseFloat(document.getElementById("scale-value-slider").value);
-    // var ground_level = parseInt(document.getElementById("ground-level").value, 10);
-    // DEPRECATED: Ground level input removed from UI
-    var ground_level = -62;
-
-    // Validate ground_level
-    ground_level = isNaN(ground_level) || ground_level < -62 ? -62 : ground_level;
+    var ground_level = clampGroundLevel(parseInt(document.getElementById("ground-level").value, 10));
 
     // Get telemetry consent (defaults to false if not set)
     const telemetryConsent = window.getTelemetryConsent ? window.getTelemetryConsent() : false;
