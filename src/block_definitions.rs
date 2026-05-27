@@ -983,7 +983,7 @@ pub const AZALEA_LEAVES: Block = Block::new(234);
 pub const EMERALD_ORE: Block = Block::new(237);
 pub const DIAMOND_ORE: Block = Block::new(249);
 
-/// Rail with an explicit `shape` property (replaces the old per-shape block IDs 118-125).
+/// rail with an explicit `shape` property (replaces the old per-shape block IDs 118-125).
 pub fn rail_with_shape(shape: &'static str) -> BlockWithProperties {
     let base = match shape {
         "east_west" | "ascending_east" | "ascending_west" => RAIL_EAST_WEST,

@@ -237,11 +237,7 @@ pub fn fetch_land_cover_data(
 // ─── Cache helpers ────────────────────────────────────────────────────────
 
 fn get_cache_dir() -> PathBuf {
-    if let Some(cache_dir) = dirs::cache_dir() {
-        cache_dir.join(LAND_COVER_CACHE_DIR)
-    } else {
-        PathBuf::from(format!("./{LAND_COVER_CACHE_DIR}"))
-    }
+    crate::elevation::cache::get_base_cache_dir().join(LAND_COVER_CACHE_DIR)
 }
 
 /// Clear every cached ESA WorldCover tile. Wrapper around the generic

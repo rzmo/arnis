@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 /// Subdirectory name for tile cache within the OS cache directory
 const TILE_CACHE_DIR_NAME: &str = "arnis-tile-cache";
@@ -6,25 +7,49 @@ const TILE_CACHE_DIR_NAME: &str = "arnis-tile-cache";
 /// Maximum age for cached tiles in days before they are cleaned up
 const TILE_CACHE_MAX_AGE_DAYS: u64 = 7;
 
-/// Returns the tile cache directory path for a specific provider.
-/// Uses the OS-standard cache directory (e.g. AppData/Local on Windows, ~/.cache on Linux).
-/// Falls back to ./arnis-tile-cache if the OS cache directory is unavailable.
-pub fn get_cache_dir(provider_name: &str) -> PathBuf {
-    let base = if let Some(cache_dir) = dirs::cache_dir() {
-        cache_dir.join(TILE_CACHE_DIR_NAME)
-    } else {
-        PathBuf::from(format!("./{TILE_CACHE_DIR_NAME}"))
-    };
-    base.join(provider_name)
+static CUSTOM_CACHE_ROOT: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+
+fn custom_cache_root() -> &'static Mutex<Option<PathBuf>> {
+    CUSTOM_CACHE_ROOT.get_or_init(|| Mutex::new(None))
 }
 
-/// Returns the base tile cache directory path (without provider subdirectory).
-pub fn get_base_cache_dir() -> PathBuf {
-    if let Some(cache_dir) = dirs::cache_dir() {
-        cache_dir.join(TILE_CACHE_DIR_NAME)
+/// Override the base cache directory for all elevation and land-cover tiles.
+/// Called once on startup when the GUI loads a user-configured path from localStorage.
+pub fn set_custom_cache_root(path: PathBuf) {
+    *custom_cache_root().lock().unwrap() = Some(path);
+}
+
+/// Clear any custom cache root override, reverting to the OS default.
+pub fn clear_custom_cache_root() {
+    *custom_cache_root().lock().unwrap() = None;
+}
+
+fn default_os_cache_base() -> PathBuf {
+    if let Some(d) = dirs::cache_dir() {
+        d.join(TILE_CACHE_DIR_NAME)
     } else {
         PathBuf::from(format!("./{TILE_CACHE_DIR_NAME}"))
     }
+}
+
+/// Returns the base tile cache directory, using a user-configured path if set.
+pub fn get_base_cache_dir() -> PathBuf {
+    custom_cache_root()
+        .lock()
+        .unwrap()
+        .clone()
+        .unwrap_or_else(default_os_cache_base)
+}
+
+/// Returns the tile cache directory path for a specific provider.
+pub fn get_cache_dir(provider_name: &str) -> PathBuf {
+    get_base_cache_dir().join(provider_name)
+}
+
+/// Returns the default (OS-standard) cache base directory, regardless of any override.
+/// Used by the GUI to show the placeholder when no custom path is set.
+pub fn get_default_cache_dir() -> PathBuf {
+    default_os_cache_base()
 }
 
 /// Summary of a cache-clear operation, returned to the GUI so it can

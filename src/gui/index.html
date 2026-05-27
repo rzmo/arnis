@@ -341,6 +341,20 @@
           </div>
         </div>
 
+        <!-- Cache Path -->
+        <div class="settings-row">
+          <label for="cache-path-input">
+            <span data-localize="cache_path">Tile Cache Path</span>
+            <span class="tooltip-icon" data-tooltip="Where elevation and land-cover tiles are stored. Defaults to your OS cache folder (AppData/Local on Windows). Change this if you are low on space on that drive.">?</span>
+          </label>
+          <div class="settings-control save-path-control">
+            <input type="text" id="cache-path-input" name="cache-path-input" class="save-path-input" placeholder="OS default">
+            <button type="button" id="cache-path-browse" class="save-path-browse" title="Browse...">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+            </button>
+          </div>
+        </div>
+
         <!-- Tile Cache Cleaner -->
         <div class="settings-row">
           <label for="clear-cache-button">

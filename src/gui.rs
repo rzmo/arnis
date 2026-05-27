@@ -147,6 +147,9 @@ pub fn run_gui() {
             gui_get_default_save_path,
             gui_set_save_path,
             gui_pick_save_directory,
+            gui_get_default_cache_path,
+            gui_set_cache_path,
+            gui_pick_cache_directory,
             gui_start_generation,
             gui_get_version,
             gui_get_update_info,
@@ -216,6 +219,45 @@ fn detect_minecraft_saves_directory() -> PathBuf {
 #[tauri::command]
 fn gui_get_default_save_path() -> String {
     detect_minecraft_saves_directory().display().to_string()
+}
+
+/// Returns the OS-default tile cache directory so the GUI can display it as a placeholder.
+#[tauri::command]
+fn gui_get_default_cache_path() -> String {
+    crate::elevation::cache::get_default_cache_dir()
+        .display()
+        .to_string()
+}
+
+/// Validates the given path and, if valid, sets it as the tile cache root for this session.
+/// The GUI persists it in localStorage and calls this on every launch.
+#[tauri::command]
+fn gui_set_cache_path(path: String) -> Result<String, String> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        // Try to create it so the user can point to a drive that exists but has no folder yet.
+        std::fs::create_dir_all(&p)
+            .map_err(|e| format!("Could not create directory: {e}"))?;
+    }
+    if !p.is_dir() {
+        return Err("Path is not a directory.".to_string());
+    }
+    crate::elevation::cache::set_custom_cache_root(p);
+    Ok(path)
+}
+
+/// Opens a native folder-picker dialog for the tile cache directory.
+#[tauri::command]
+fn gui_pick_cache_directory(start_path: String) -> Result<String, String> {
+    let start = PathBuf::from(&start_path);
+    let mut dialog = FileDialog::new();
+    if start.is_dir() {
+        dialog = dialog.set_directory(&start);
+    }
+    match dialog.pick_folder() {
+        Some(folder) => Ok(folder.display().to_string()),
+        None => Ok(start_path),
+    }
 }
 
 #[derive(serde::Serialize)]

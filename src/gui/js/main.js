@@ -38,6 +38,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   window.startGeneration = startGeneration;
   setupProgressListener();
   await initSavePath();
+  await initCachePath();
   initSettings();
   initTelemetryConsent();
   initClearCacheButton();
@@ -131,6 +132,7 @@ async function applyLocalization(localization) {
     "div[data-localize='settings_section_world']": "settings_section_world",
     "div[data-localize='settings_section_map']": "settings_section_map",
     "div[data-localize='settings_section_application']": "settings_section_application",
+    "span[data-localize='cache_path']": "cache_path",
     "span[data-localize='clear_tile_cache']": "clear_tile_cache",
     "button[data-localize='clear_tile_cache_button']": "clear_tile_cache_button",
     ".footer-link": "footer_text",
@@ -636,6 +638,7 @@ function initSettings() {
 
   // Save path setting
   initSavePathSetting();
+  initCachePathSetting();
 
   // Language selector
   const languageSelect = document.getElementById("language-select");
@@ -1164,6 +1167,83 @@ function initSavePathSetting() {
         }
       } catch (error) {
         console.error("Folder picker failed:", error);
+      }
+    });
+  }
+}
+
+let cachePath = "";
+
+async function initCachePath() {
+  const saved = localStorage.getItem('arnis-cache-path');
+  if (saved) {
+    try {
+      const validated = await invoke('gui_set_cache_path', { path: saved });
+      cachePath = validated;
+      localStorage.setItem('arnis-cache-path', cachePath);
+    } catch (_) {
+      console.warn("Stored cache path no longer valid, reverting to OS default.");
+      localStorage.removeItem('arnis-cache-path');
+      cachePath = "";
+    }
+  }
+
+  const cachePathInput = document.getElementById('cache-path-input');
+  if (cachePathInput) {
+    cachePathInput.value = cachePath;
+    if (!cachePath) {
+      try {
+        const defaultPath = await invoke('gui_get_default_cache_path');
+        cachePathInput.placeholder = defaultPath;
+      } catch (_) {
+        cachePathInput.placeholder = "OS default";
+      }
+    }
+  }
+}
+
+function initCachePathSetting() {
+  const cachePathInput = document.getElementById('cache-path-input');
+  if (!cachePathInput) return;
+
+  cachePathInput.value = cachePath;
+
+  cachePathInput.addEventListener('change', async () => {
+    const newPath = cachePathInput.value.trim();
+    if (!newPath) {
+      localStorage.removeItem('arnis-cache-path');
+      cachePath = "";
+      cachePathInput.value = "";
+      try {
+        const defaultPath = await invoke('gui_get_default_cache_path');
+        cachePathInput.placeholder = defaultPath;
+      } catch (_) {}
+      return;
+    }
+    try {
+      const validated = await invoke('gui_set_cache_path', { path: newPath });
+      cachePath = validated;
+      localStorage.setItem('arnis-cache-path', cachePath);
+    } catch (err) {
+      cachePathInput.value = cachePath;
+      console.warn("Cache path rejected:", err);
+    }
+  });
+
+  const browseBtn = document.getElementById('cache-path-browse');
+  if (browseBtn) {
+    browseBtn.addEventListener('click', async () => {
+      const startPath = cachePath || (cachePathInput.placeholder !== "OS default" ? cachePathInput.placeholder : "");
+      try {
+        const picked = await invoke('gui_pick_cache_directory', { startPath: startPath });
+        if (picked) {
+          const validated = await invoke('gui_set_cache_path', { path: picked });
+          cachePath = validated;
+          cachePathInput.value = cachePath;
+          localStorage.setItem('arnis-cache-path', cachePath);
+        }
+      } catch (error) {
+        console.error("Cache folder picker failed:", error);
       }
     });
   }

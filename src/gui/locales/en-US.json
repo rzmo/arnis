@@ -66,6 +66,7 @@
   "settings_section_world": "World",
   "settings_section_map": "Map & Input",
   "settings_section_application": "Application",
+  "cache_path": "Tile Cache Path",
   "clear_tile_cache": "Clear Tile Cache",
   "clear_tile_cache_button": "Clear",
   "anonymous_crash_reports": "Anonymous Crash Reports"
