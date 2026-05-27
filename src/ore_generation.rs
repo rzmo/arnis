@@ -1,7 +1,7 @@
 //! Random ore veins for the stone produced by `--fillground`.
 
 use crate::block_definitions::{
-    Block, COAL_ORE, DIAMOND_ORE, GOLD_ORE, IRON_ORE, LAPIS_ORE, REDSTONE_ORE, STONE,
+    Block, COAL_ORE, COPPER_ORE, DIAMOND_ORE, GOLD_ORE, IRON_ORE, LAPIS_ORE, REDSTONE_ORE, STONE,
 };
 use crate::coordinate_system::cartesian::XZBBox;
 use crate::deterministic_rng::coord_rng;
@@ -38,6 +38,14 @@ const ORES: &[OreDef] = &[
         vein_min: 5,
         vein_max: 9,
         avg_veins_per_chunk: 6,
+    },
+    OreDef {
+        block: COPPER_ORE,
+        depth_min: 3,
+        depth_max: 50,
+        vein_min: 6,
+        vein_max: 12,
+        avg_veins_per_chunk: 5,
     },
     OreDef {
         block: LAPIS_ORE,
