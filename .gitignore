@@ -34,6 +34,13 @@ Thumbs.db
 /terrain-tile-cache
 /arnis-tile-cache
 
+# Local benchmark artifacts (not for upstream)
+/bench_world/
+/bench_data/
+/bench_warmup.txt
+
+.gitignore
+
 /gen/
 /build/
 *.rmeta
