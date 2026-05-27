@@ -231,6 +231,11 @@ pub fn generate_ground_layer(
                                         STONE,
                                     );
                                 }
+                                if all_clean {
+                                    // Boundary section (deepslate_top_section) is not bulk-filled.
+                                    column_fill_y_min =
+                                        (deepslate_top_section as i32) * 16;
+                                }
                             } else {
                                 all_clean = editor.bulk_fill_chunk_sections_below(
                                     chunk_x,
@@ -238,6 +243,9 @@ pub fn generate_ground_layer(
                                     top_buried,
                                     STONE,
                                 );
+                                if all_clean {
+                                    column_fill_y_min = (top_buried as i32 + 1) * 16;
+                                }
                             }
                         } else {
                             all_clean = editor.bulk_fill_chunk_sections_below(
@@ -246,9 +254,9 @@ pub fn generate_ground_layer(
                                 top_buried,
                                 STONE,
                             );
-                        }
-                        if all_clean {
-                            column_fill_y_min = (top_buried as i32 + 1) * 16;
+                            if all_clean {
+                                column_fill_y_min = (top_buried as i32 + 1) * 16;
+                            }
                         }
                     }
                 }

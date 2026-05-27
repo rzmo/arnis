@@ -181,11 +181,65 @@ pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox, args: &Args) {
                     );
                 }
             }
+
+            if args.ground_level > DEFAULT_GROUND_LEVEL && chunk_deepslate_top > MIN_Y + 1 {
+                let y_min = MIN_Y + 1;
+                let y_max = chunk_deepslate_top - 1;
+                let mut deepslate_rng = coord_rng(chunk_x, chunk_z, 0xD5151A7E);
+                for ore in ORES {
+                    if let Some(min_above) = ore.min_height_above_base {
+                        if ground_y - args.ground_level < min_above {
+                            continue;
+                        }
+                    }
+                    let max_veins = ore.avg_veins_per_chunk * 2;
+                    let n = deepslate_rng.random_range(0..=max_veins);
+                    for _ in 0..n {
+                        let cx = (chunk_x << 4) + deepslate_rng.random_range(0..16);
+                        let cz = (chunk_z << 4) + deepslate_rng.random_range(0..16);
+                        let cy = deepslate_rng.random_range(y_min..=y_max);
+                        let size = deepslate_rng.random_range(ore.vein_min..=ore.vein_max);
+                        place_deepslate_vein(editor, ore, cx, cy, cz, size, &mut deepslate_rng);
+                    }
+                }
+            }
         }
     }
 }
 
 // Whitelist on set_block_absolute is required to overwrite STONE/DEEPSLATE; pre-check filters AIR.
+fn place_deepslate_vein(
+    editor: &mut WorldEditor,
+    ore: &OreDef,
+    x: i32,
+    y: i32,
+    z: i32,
+    size: u32,
+    rng: &mut impl Rng,
+) {
+    let (mut cx, mut cy, mut cz) = (x, y, z);
+    for _ in 0..size {
+        if editor.check_for_block_absolute(cx, cy, cz, Some(&[DEEPSLATE]), None) {
+            editor.set_block_absolute(
+                ore.deepslate_variant,
+                cx,
+                cy,
+                cz,
+                Some(&[DEEPSLATE]),
+                None,
+            );
+        }
+        match rng.random_range(0..6) {
+            0 => cx += 1,
+            1 => cx -= 1,
+            2 => cy += 1,
+            3 => cy -= 1,
+            4 => cz += 1,
+            _ => cz -= 1,
+        }
+    }
+}
+
 fn place_vein(
     editor: &mut WorldEditor,
     ore: &OreDef,
