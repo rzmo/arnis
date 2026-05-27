@@ -1,7 +1,9 @@
 //! Random ore veins for the stone produced by `--fillground`.
 
+use crate::args::Args;
 use crate::block_definitions::{
-    Block, COAL_ORE, COPPER_ORE, DIAMOND_ORE, GOLD_ORE, IRON_ORE, LAPIS_ORE, REDSTONE_ORE, STONE,
+    Block, COAL_ORE, COPPER_ORE, DIAMOND_ORE, EMERALD_ORE, GOLD_ORE, IRON_ORE, LAPIS_ORE,
+    REDSTONE_ORE, STONE,
 };
 use crate::coordinate_system::cartesian::XZBBox;
 use crate::deterministic_rng::coord_rng;
@@ -20,6 +22,8 @@ struct OreDef {
     vein_max: u32,
     /// Sampled as uniform 0..=2*avg, giving the requested mean.
     avg_veins_per_chunk: u32,
+    /// Skip this ore unless local ground is at least this many blocks above `args.ground_level`.
+    min_height_above_base: Option<i32>,
 }
 
 const ORES: &[OreDef] = &[
@@ -30,6 +34,7 @@ const ORES: &[OreDef] = &[
         vein_min: 8,
         vein_max: 17,
         avg_veins_per_chunk: 8,
+        min_height_above_base: None,
     },
     OreDef {
         block: IRON_ORE,
@@ -38,6 +43,7 @@ const ORES: &[OreDef] = &[
         vein_min: 5,
         vein_max: 9,
         avg_veins_per_chunk: 6,
+        min_height_above_base: None,
     },
     OreDef {
         block: COPPER_ORE,
@@ -46,6 +52,7 @@ const ORES: &[OreDef] = &[
         vein_min: 6,
         vein_max: 12,
         avg_veins_per_chunk: 5,
+        min_height_above_base: None,
     },
     OreDef {
         block: LAPIS_ORE,
@@ -54,6 +61,7 @@ const ORES: &[OreDef] = &[
         vein_min: 4,
         vein_max: 7,
         avg_veins_per_chunk: 2,
+        min_height_above_base: None,
     },
     OreDef {
         block: GOLD_ORE,
@@ -62,6 +70,7 @@ const ORES: &[OreDef] = &[
         vein_min: 5,
         vein_max: 9,
         avg_veins_per_chunk: 3,
+        min_height_above_base: None,
     },
     OreDef {
         block: REDSTONE_ORE,
@@ -70,6 +79,7 @@ const ORES: &[OreDef] = &[
         vein_min: 5,
         vein_max: 10,
         avg_veins_per_chunk: 4,
+        min_height_above_base: None,
     },
     OreDef {
         block: DIAMOND_ORE,
@@ -78,11 +88,21 @@ const ORES: &[OreDef] = &[
         vein_min: 4,
         vein_max: 7,
         avg_veins_per_chunk: 1,
+        min_height_above_base: None,
+    },
+    OreDef {
+        block: EMERALD_ORE,
+        depth_min: 3,
+        depth_max: 30,
+        vein_min: 1,
+        vein_max: 3,
+        avg_veins_per_chunk: 1,
+        min_height_above_base: Some(80),
     },
 ];
 
 /// Place ore veins across every chunk; Y is relative to local ground.
-pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox) {
+pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox, args: &Args) {
     println!("{} Sprinkling ore veins...", "[6b/7]".bold());
     emit_gui_progress_update(89.0, "Sprinkling ore veins...");
 
@@ -97,6 +117,11 @@ pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox) {
             let mut rng = coord_rng(chunk_x, chunk_z, 0xC0DE);
 
             for ore in ORES {
+                if let Some(min_above) = ore.min_height_above_base {
+                    if ground_y - args.ground_level < min_above {
+                        continue;
+                    }
+                }
                 let y_min = (ground_y - ore.depth_max).max(MIN_Y + 1);
                 let y_max = (ground_y - ore.depth_min).max(MIN_Y + 1);
                 if y_min > y_max {

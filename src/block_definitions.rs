@@ -333,7 +333,7 @@ impl Block {
             234 => "azalea_leaves",
             235 => "potted_poppy",
             236 => "oak_trapdoor",
-            237 => "oak_trapdoor",
+            237 => "emerald_ore",
             238 => "oak_trapdoor",
             239 => "oak_trapdoor",
             240 => "quartz_slab",
@@ -678,14 +678,6 @@ impl Block {
             236 => Some(Value::Compound({
                 let mut map = HashMap::new();
                 map.insert("facing".to_string(), Value::String("north".to_string()));
-                map.insert("open".to_string(), Value::String("true".to_string()));
-                map.insert("half".to_string(), Value::String("top".to_string()));
-                map
-            })),
-            // Open oak trapdoor facing south
-            237 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert("facing".to_string(), Value::String("south".to_string()));
                 map.insert("open".to_string(), Value::String("true".to_string()));
                 map.insert("half".to_string(), Value::String("top".to_string()));
                 map
@@ -1039,6 +1031,7 @@ pub const MANGROVE_LOG: Block = Block::new(0);
 pub const MANGROVE_LEAVES: Block = Block::new(233);
 pub const AZALEA_LEAVES: Block = Block::new(234);
 
+pub const EMERALD_ORE: Block = Block::new(237);
 pub const DIAMOND_ORE: Block = Block::new(249);
 pub const REDSTONE_ORE: Block = Block::new(250);
 pub const LAPIS_ORE: Block = Block::new(251);
