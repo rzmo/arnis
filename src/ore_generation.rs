@@ -60,14 +60,28 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         block: COAL_ORE,
         deepslate_variant: DEEPSLATE_COAL_ORE,
         vanilla_y_min: 0,
-        vanilla_y_max: 192,
+        vanilla_y_max: 256,
         distribution: HeightDistribution::Triangle,
         size_min: 8,
         size_max: 17,
         spawn_tries: 20,
-        air_exposure_skip: 0.5,
+        air_exposure_skip: 0.35,
         rarity_one_in: None,
         rng_salt: 0xC0A1_0001,
+        min_height_above_base: None,
+    },
+    OrePlacement {
+        block: COAL_ORE,
+        deepslate_variant: DEEPSLATE_COAL_ORE,
+        vanilla_y_min: 48,
+        vanilla_y_max: 320,
+        distribution: HeightDistribution::Triangle,
+        size_min: 6,
+        size_max: 12,
+        spawn_tries: 16,
+        air_exposure_skip: 0.2,
+        rarity_one_in: None,
+        rng_salt: 0xC0A1_0002,
         min_height_above_base: None,
     },
     // Iron
@@ -479,7 +493,8 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     const COAL_MAIN: &OrePlacement = &ORE_PLACEMENTS[0];
-    const DIAMOND_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[11];
+    const COAL_SHALLOW: &OrePlacement = &ORE_PLACEMENTS[1];
+    const DIAMOND_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[12];
 
     #[test]
     fn map_vanilla_endpoints_to_column() {
@@ -491,6 +506,11 @@ mod tests {
         assert!(coal_max <= underground_top);
         assert!(coal_max > diamond_max);
         assert!(diamond_min <= coal_min);
+        let (_, shallow_max) = placement_y_range(COAL_SHALLOW, ground_y).unwrap();
+        assert!(
+            shallow_max >= underground_top - 20,
+            "shallow coal band should reach near the surface"
+        );
     }
 
     #[test]
