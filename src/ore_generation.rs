@@ -64,11 +64,11 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         deepslate_variant: DEEPSLATE_COAL_ORE,
         vanilla_y_min: 0,
         vanilla_y_max: 192,
-        distribution: HeightDistribution::UpperTriangle,
+        distribution: HeightDistribution::Triangle,
         size_min: 8,
         size_max: 17,
-        spawn_tries: 20,
-        air_exposure_skip: 0.35,
+        spawn_tries: 14,
+        air_exposure_skip: 0.55,
         rarity_one_in: None,
         rng_salt: 0xC0A1_0001,
         min_height_above_base: None,
@@ -82,8 +82,8 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Uniform,
         size_min: 4,
         size_max: 4,
-        spawn_tries: 10,
-        air_exposure_skip: 0.0,
+        spawn_tries: 8,
+        air_exposure_skip: 0.15,
         rarity_one_in: None,
         rng_salt: 0x1E00_0001,
         min_height_above_base: None,
@@ -96,8 +96,8 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Triangle,
         size_min: 5,
         size_max: 9,
-        spawn_tries: 10,
-        air_exposure_skip: 0.0,
+        spawn_tries: 8,
+        air_exposure_skip: 0.25,
         rarity_one_in: None,
         rng_salt: 0x1E00_0002,
         min_height_above_base: None,
@@ -110,8 +110,8 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Triangle,
         size_min: 5,
         size_max: 9,
-        spawn_tries: 10,
-        air_exposure_skip: 0.0,
+        spawn_tries: 4,
+        air_exposure_skip: 0.55,
         rarity_one_in: None,
         rng_salt: 0x1E00_0003,
         min_height_above_base: None,
@@ -227,7 +227,7 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Triangle,
         size_min: 4,
         size_max: 4,
-        spawn_tries: 7,
+        spawn_tries: 4,
         air_exposure_skip: 0.5,
         rarity_one_in: None,
         rng_salt: 0xD1A1_0001,
@@ -241,7 +241,7 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Triangle,
         size_min: 5,
         size_max: 8,
-        spawn_tries: 4,
+        spawn_tries: 2,
         air_exposure_skip: 0.0,
         rarity_one_in: None,
         rng_salt: 0xD1A1_0002,
@@ -255,9 +255,9 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Triangle,
         size_min: 8,
         size_max: 12,
-        spawn_tries: 2,
+        spawn_tries: 1,
         air_exposure_skip: 0.0,
-        rarity_one_in: Some(9),
+        rarity_one_in: Some(14),
         rng_salt: 0xD1A1_0003,
         min_height_above_base: None,
     },
@@ -269,7 +269,7 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         distribution: HeightDistribution::Uniform,
         size_min: 5,
         size_max: 8,
-        spawn_tries: 2,
+        spawn_tries: 1,
         air_exposure_skip: 0.5,
         rarity_one_in: None,
         rng_salt: 0xD1A1_0004,
@@ -321,32 +321,62 @@ fn underground_bounds(ground_y: i32) -> Option<(i32, i32)> {
     Some((underground_bottom, underground_top))
 }
 
-/// Map vanilla Y onto column Y (bedrock floor to sea-level stone top).
+/// Vanilla Y at the top of the anchor range for this column (sea level, or higher when terrain is tall).
+#[inline]
+fn vanilla_anchor_ceiling(ground_y: i32) -> i32 {
+    let Some((bottom, top)) = underground_bounds(ground_y) else {
+        return VANILLA_ANCHOR_SURFACE;
+    };
+    let col_span = top - bottom;
+    let sea_span = VANILLA_ANCHOR_SURFACE - VANILLA_ANCHOR_FLOOR;
+    if col_span <= sea_span {
+        VANILLA_ANCHOR_SURFACE
+    } else {
+        VANILLA_ANCHOR_FLOOR + col_span
+    }
+}
+
+/// Map vanilla Y onto column Y (bedrock floor to anchor ceiling).
 #[inline]
 fn map_vanilla_y_to_column(
     vanilla_y: i32,
     underground_bottom: i32,
     underground_top: i32,
+    vanilla_ceiling: i32,
 ) -> i32 {
     let col_span = (underground_top - underground_bottom).max(1);
-    let clamped = vanilla_y.clamp(VANILLA_ANCHOR_FLOOR, VANILLA_ANCHOR_SURFACE);
-    let anchor_span = (VANILLA_ANCHOR_SURFACE - VANILLA_ANCHOR_FLOOR) as f64;
+    let clamped = vanilla_y.clamp(VANILLA_ANCHOR_FLOOR, vanilla_ceiling);
+    let anchor_span = (vanilla_ceiling - VANILLA_ANCHOR_FLOOR).max(1) as f64;
     let t = (clamped - VANILLA_ANCHOR_FLOOR) as f64 / anchor_span;
     underground_bottom + (t * col_span as f64).round() as i32
 }
 
+fn clamped_vanilla_band(placement: &OrePlacement, ground_y: i32) -> Option<(i32, i32)> {
+    let ceiling = vanilla_anchor_ceiling(ground_y);
+    let lo = placement.vanilla_y_min.max(VANILLA_ANCHOR_FLOOR);
+    let hi = placement.vanilla_y_max.min(ceiling);
+    if lo > hi {
+        return None;
+    }
+    Some((lo, hi))
+}
+
 fn placement_y_range(placement: &OrePlacement, ground_y: i32) -> Option<(i32, i32)> {
     let (underground_bottom, underground_top) = underground_bounds(ground_y)?;
+    let (v_min, v_max) = clamped_vanilla_band(placement, ground_y)?;
+    let vanilla_ceiling = vanilla_anchor_ceiling(ground_y);
 
     let mut y_min = map_vanilla_y_to_column(
-        placement.vanilla_y_min,
+        v_min,
         underground_bottom,
         underground_top,
+        vanilla_ceiling,
     );
     let mut y_max = map_vanilla_y_to_column(
-        placement.vanilla_y_max,
+        v_max,
         underground_bottom,
         underground_top,
+        vanilla_ceiling,
     );
     if y_min > y_max {
         std::mem::swap(&mut y_min, &mut y_max);
@@ -393,13 +423,15 @@ fn sample_placement_y(
     rng: &mut impl Rng,
 ) -> Option<i32> {
     let (underground_bottom, underground_top) = underground_bounds(ground_y)?;
-    let vanilla_y = sample_vanilla_y(
-        placement.distribution,
-        placement.vanilla_y_min,
-        placement.vanilla_y_max,
-        rng,
+    let (v_min, v_max) = clamped_vanilla_band(placement, ground_y)?;
+    let vanilla_y = sample_vanilla_y(placement.distribution, v_min, v_max, rng);
+    let vanilla_ceiling = vanilla_anchor_ceiling(ground_y);
+    let cy = map_vanilla_y_to_column(
+        vanilla_y,
+        underground_bottom,
+        underground_top,
+        vanilla_ceiling,
     );
-    let cy = map_vanilla_y_to_column(vanilla_y, underground_bottom, underground_top);
     Some(cy.clamp(underground_bottom, underground_top))
 }
 
@@ -513,18 +545,41 @@ mod tests {
     fn sea_level_anchor_maps_floor_and_surface() {
         let ground_y = 64;
         let (bottom, top) = underground_bounds(ground_y).unwrap();
+        let ceiling = vanilla_anchor_ceiling(ground_y);
         assert_eq!(
-            map_vanilla_y_to_column(VANILLA_ANCHOR_FLOOR, bottom, top),
+            map_vanilla_y_to_column(VANILLA_ANCHOR_FLOOR, bottom, top, ceiling),
             bottom
         );
         assert_eq!(
-            map_vanilla_y_to_column(VANILLA_ANCHOR_SURFACE, bottom, top),
+            map_vanilla_y_to_column(VANILLA_ANCHOR_SURFACE, bottom, top, ceiling),
             top
         );
         assert_eq!(
-            map_vanilla_y_to_column(384, bottom, top),
+            map_vanilla_y_to_column(384, bottom, top, ceiling),
             top,
             "above-sea-level vanilla Y clamps to surface stone top"
+        );
+    }
+
+    #[test]
+    fn tall_surface_spreads_ores_below_top() {
+        let ground_y = 82;
+        let top = ground_y - 3;
+        let mut rng = ChaCha8Rng::seed_from_u64(1);
+        let mut coal_sum = 0i64;
+        let mut iron_sum = 0i64;
+        const N: i32 = 3000;
+        for _ in 0..N {
+            coal_sum += sample_placement_y(COAL_MAIN, ground_y, &mut rng).unwrap() as i64;
+        }
+        let coal_mean = coal_sum as f64 / f64::from(N);
+        assert!(
+            coal_mean < f64::from(top) - 6.0,
+            "coal mean {coal_mean} should stay below surface band at {top}"
+        );
+        assert!(
+            clamped_vanilla_band(&ORE_PLACEMENTS[3], ground_y).is_none(),
+            "mountain iron blob should not run when the column is shorter than vanilla Y=80"
         );
     }
 
@@ -555,9 +610,9 @@ mod tests {
     fn triangle_samples_near_vanilla_band_center() {
         let ground_y = 64;
         let (bottom, top) = underground_bounds(ground_y).unwrap();
+        let ceiling = vanilla_anchor_ceiling(ground_y);
         let vanilla_mid = (DIAMOND_TRIANGLE.vanilla_y_min + DIAMOND_TRIANGLE.vanilla_y_max) / 2;
-        let expected =
-            map_vanilla_y_to_column(vanilla_mid, bottom, top);
+        let expected = map_vanilla_y_to_column(vanilla_mid, bottom, top, ceiling);
         let mut rng = ChaCha8Rng::seed_from_u64(42);
         let mut sum = 0i64;
         const N: i32 = 2000;
@@ -576,8 +631,10 @@ mod tests {
         const COPPER: &OrePlacement = &ORE_PLACEMENTS[4];
         let ground_y = 64;
         let (bottom, top) = underground_bounds(ground_y).unwrap();
-        let vanilla_peak = (COPPER.vanilla_y_min + COPPER.vanilla_y_max) / 2;
-        let expected_peak = map_vanilla_y_to_column(vanilla_peak, bottom, top);
+        let (v_lo, v_hi) = clamped_vanilla_band(COPPER, ground_y).unwrap();
+        let vanilla_peak = (v_lo + v_hi) / 2;
+        let ceiling = vanilla_anchor_ceiling(ground_y);
+        let expected_peak = map_vanilla_y_to_column(vanilla_peak, bottom, top, ceiling);
         let mut rng = ChaCha8Rng::seed_from_u64(7);
         let mut sum = 0i64;
         const N: i32 = 2000;
@@ -593,28 +650,6 @@ mod tests {
         assert!(
             (mean - f64::from(expected_peak)).abs() < 10.0,
             "copper mean {mean} should be near mapped vanilla peak {expected_peak}"
-        );
-    }
-
-    #[test]
-    fn upper_triangle_samples_near_band_top() {
-        let ground_y = 64;
-        let (bottom, top) = underground_bounds(ground_y).unwrap();
-        let mut rng = ChaCha8Rng::seed_from_u64(99);
-        let mut sum = 0i64;
-        const N: i32 = 2000;
-        for _ in 0..N {
-            sum += sample_placement_y(COAL_MAIN, ground_y, &mut rng).unwrap() as i64;
-        }
-        let mean = sum as f64 / f64::from(N);
-        let column_mid = (bottom + top) as f64 / 2.0;
-        assert!(
-            mean > column_mid,
-            "coal upper triangle mean {mean} should be above column mid {column_mid}"
-        );
-        assert!(
-            mean >= f64::from(top) - 5.0,
-            "coal upper triangle mean {mean} should be near surface stone top {top}"
         );
     }
 
