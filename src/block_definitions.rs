@@ -222,7 +222,15 @@ impl Block {
             113 => "oak_sign",
             114 => "andesite_wall",
             115 => "stone_brick_wall",
-            116..=125 => "rail",
+            116..=117 => "rail",
+            118 => "deepslate_coal_ore",
+            119 => "deepslate_iron_ore",
+            120 => "deepslate_copper_ore",
+            121 => "deepslate_gold_ore",
+            122 => "deepslate_redstone_ore",
+            123 => "deepslate_lapis_ore",
+            124 => "deepslate_diamond_ore",
+            125 => "deepslate_emerald_ore",
             126 => "coarse_dirt",
             127 => "iron_ore",
             128 => "coal_ore",
@@ -440,65 +448,6 @@ impl Block {
                 map
             })),
 
-            118 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert(
-                    "shape".to_string(),
-                    Value::String("ascending_east".to_string()),
-                );
-                map
-            })),
-
-            119 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert(
-                    "shape".to_string(),
-                    Value::String("ascending_west".to_string()),
-                );
-                map
-            })),
-
-            120 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert(
-                    "shape".to_string(),
-                    Value::String("ascending_north".to_string()),
-                );
-                map
-            })),
-
-            121 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert(
-                    "shape".to_string(),
-                    Value::String("ascending_south".to_string()),
-                );
-                map
-            })),
-
-            122 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert("shape".to_string(), Value::String("north_east".to_string()));
-                map
-            })),
-
-            123 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert("shape".to_string(), Value::String("north_west".to_string()));
-                map
-            })),
-
-            124 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert("shape".to_string(), Value::String("south_east".to_string()));
-                map
-            })),
-
-            125 => Some(Value::Compound({
-                let mut map = HashMap::new();
-                map.insert("shape".to_string(), Value::String("south_west".to_string()));
-                map
-            })),
             137 => Some(Value::Compound({
                 let mut map = HashMap::new();
                 map.insert("half".to_string(), Value::String("lower".to_string()));
@@ -893,14 +842,14 @@ pub const WHEAT: Block = Block::new(109);
 pub const BEDROCK: Block = Block::new(110);
 pub const RAIL_NORTH_SOUTH: Block = Block::new(116);
 pub const RAIL_EAST_WEST: Block = Block::new(117);
-pub const RAIL_ASCENDING_EAST: Block = Block::new(118);
-pub const RAIL_ASCENDING_WEST: Block = Block::new(119);
-pub const RAIL_ASCENDING_NORTH: Block = Block::new(120);
-pub const RAIL_ASCENDING_SOUTH: Block = Block::new(121);
-pub const RAIL_NORTH_EAST: Block = Block::new(122);
-pub const RAIL_NORTH_WEST: Block = Block::new(123);
-pub const RAIL_SOUTH_EAST: Block = Block::new(124);
-pub const RAIL_SOUTH_WEST: Block = Block::new(125);
+pub const DEEPSLATE_COAL_ORE: Block = Block::new(118);
+pub const DEEPSLATE_IRON_ORE: Block = Block::new(119);
+pub const DEEPSLATE_COPPER_ORE: Block = Block::new(120);
+pub const DEEPSLATE_GOLD_ORE: Block = Block::new(121);
+pub const DEEPSLATE_REDSTONE_ORE: Block = Block::new(122);
+pub const DEEPSLATE_LAPIS_ORE: Block = Block::new(123);
+pub const DEEPSLATE_DIAMOND_ORE: Block = Block::new(124);
+pub const DEEPSLATE_EMERALD_ORE: Block = Block::new(125);
 pub const COARSE_DIRT: Block = Block::new(126);
 pub const IRON_ORE: Block = Block::new(127);
 pub const COAL_ORE: Block = Block::new(128);
@@ -1033,6 +982,20 @@ pub const AZALEA_LEAVES: Block = Block::new(234);
 
 pub const EMERALD_ORE: Block = Block::new(237);
 pub const DIAMOND_ORE: Block = Block::new(249);
+
+/// Rail with an explicit `shape` property (replaces the old per-shape block IDs 118-125).
+pub fn rail_with_shape(shape: &'static str) -> BlockWithProperties {
+    let base = match shape {
+        "east_west" | "ascending_east" | "ascending_west" => RAIL_EAST_WEST,
+        _ => RAIL_NORTH_SOUTH,
+    };
+    let mut map = HashMap::new();
+    map.insert(
+        "shape".to_string(),
+        Value::String(shape.to_string()),
+    );
+    BlockWithProperties::new(base, Some(Value::Compound(map)))
+}
 pub const REDSTONE_ORE: Block = Block::new(250);
 pub const LAPIS_ORE: Block = Block::new(251);
 

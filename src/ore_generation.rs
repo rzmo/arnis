@@ -2,8 +2,10 @@
 
 use crate::args::Args;
 use crate::block_definitions::{
-    Block, COAL_ORE, COPPER_ORE, DIAMOND_ORE, EMERALD_ORE, GOLD_ORE, IRON_ORE, LAPIS_ORE,
-    REDSTONE_ORE, STONE,
+    Block, COAL_ORE, COPPER_ORE, DEEPSLATE, DEEPSLATE_COAL_ORE, DEEPSLATE_COPPER_ORE,
+    DEEPSLATE_DIAMOND_ORE, DEEPSLATE_EMERALD_ORE, DEEPSLATE_GOLD_ORE, DEEPSLATE_IRON_ORE,
+    DEEPSLATE_LAPIS_ORE, DEEPSLATE_REDSTONE_ORE, DIAMOND_ORE, EMERALD_ORE, GOLD_ORE, IRON_ORE,
+    LAPIS_ORE, REDSTONE_ORE, STONE,
 };
 use crate::coordinate_system::cartesian::XZBBox;
 use crate::deterministic_rng::coord_rng;
@@ -12,8 +14,13 @@ use crate::world_editor::{WorldEditor, MIN_Y};
 use colored::Colorize;
 use rand::Rng;
 
+const DEFAULT_GROUND_LEVEL: i32 = -62;
+const MAX_DEEPSLATE_BAND: i32 = 64;
+const ORE_SUBSTRATE: &[Block] = &[STONE, DEEPSLATE];
+
 struct OreDef {
     block: Block,
+    deepslate_variant: Block,
     /// Shallowest depth below local ground level (e.g. 3 = 3 blocks under surface).
     depth_min: i32,
     /// Deepest depth below local ground level.
@@ -29,6 +36,7 @@ struct OreDef {
 const ORES: &[OreDef] = &[
     OreDef {
         block: COAL_ORE,
+        deepslate_variant: DEEPSLATE_COAL_ORE,
         depth_min: 3,
         depth_max: 45,
         vein_min: 8,
@@ -38,6 +46,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: IRON_ORE,
+        deepslate_variant: DEEPSLATE_IRON_ORE,
         depth_min: 3,
         depth_max: 60,
         vein_min: 5,
@@ -47,6 +56,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: COPPER_ORE,
+        deepslate_variant: DEEPSLATE_COPPER_ORE,
         depth_min: 3,
         depth_max: 50,
         vein_min: 6,
@@ -56,6 +66,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: LAPIS_ORE,
+        deepslate_variant: DEEPSLATE_LAPIS_ORE,
         depth_min: 25,
         depth_max: 55,
         vein_min: 4,
@@ -65,6 +76,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: GOLD_ORE,
+        deepslate_variant: DEEPSLATE_GOLD_ORE,
         depth_min: 40,
         depth_max: 60,
         vein_min: 5,
@@ -74,6 +86,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: REDSTONE_ORE,
+        deepslate_variant: DEEPSLATE_REDSTONE_ORE,
         depth_min: 45,
         depth_max: 65,
         vein_min: 5,
@@ -83,6 +96,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: DIAMOND_ORE,
+        deepslate_variant: DEEPSLATE_DIAMOND_ORE,
         depth_min: 50,
         depth_max: 65,
         vein_min: 4,
@@ -92,6 +106,7 @@ const ORES: &[OreDef] = &[
     },
     OreDef {
         block: EMERALD_ORE,
+        deepslate_variant: DEEPSLATE_EMERALD_ORE,
         depth_min: 3,
         depth_max: 30,
         vein_min: 1,
@@ -100,6 +115,25 @@ const ORES: &[OreDef] = &[
         min_height_above_base: Some(80),
     },
 ];
+
+#[inline]
+fn column_deepslate_height(ground_y: i32, ground_level: i32) -> i32 {
+    if ground_level <= DEFAULT_GROUND_LEVEL {
+        return 0;
+    }
+    let underground_height = (ground_y - 3) - MIN_Y;
+    (underground_height / 2).min(MAX_DEEPSLATE_BAND)
+}
+
+#[inline]
+fn deepslate_top_y(ground_y: i32, ground_level: i32) -> i32 {
+    let height = column_deepslate_height(ground_y, ground_level);
+    if height == 0 {
+        i32::MIN
+    } else {
+        MIN_Y + height
+    }
+}
 
 /// Place ore veins across every chunk; Y is relative to local ground.
 pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox, args: &Args) {
@@ -114,6 +148,7 @@ pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox, args: &Args) {
     for chunk_x in min_chunk_x..=max_chunk_x {
         for chunk_z in min_chunk_z..=max_chunk_z {
             let ground_y = editor.get_ground_level((chunk_x << 4) + 8, (chunk_z << 4) + 8);
+            let chunk_deepslate_top = deepslate_top_y(ground_y, args.ground_level);
             let mut rng = coord_rng(chunk_x, chunk_z, 0xC0DE);
 
             for ore in ORES {
@@ -134,17 +169,27 @@ pub fn generate_ores(editor: &mut WorldEditor, xzbbox: &XZBBox, args: &Args) {
                     let cz = (chunk_z << 4) + rng.random_range(0..16);
                     let cy = rng.random_range(y_min..=y_max);
                     let size = rng.random_range(ore.vein_min..=ore.vein_max);
-                    place_vein(editor, ore.block, cx, cy, cz, size, &mut rng);
+                    place_vein(
+                        editor,
+                        ore,
+                        chunk_deepslate_top,
+                        cx,
+                        cy,
+                        cz,
+                        size,
+                        &mut rng,
+                    );
                 }
             }
         }
     }
 }
 
-// Whitelist on set_block_absolute is required to overwrite STONE; pre-check filters AIR.
+// Whitelist on set_block_absolute is required to overwrite STONE/DEEPSLATE; pre-check filters AIR.
 fn place_vein(
     editor: &mut WorldEditor,
-    block: Block,
+    ore: &OreDef,
+    deepslate_top_y: i32,
     x: i32,
     y: i32,
     z: i32,
@@ -153,8 +198,13 @@ fn place_vein(
 ) {
     let (mut cx, mut cy, mut cz) = (x, y, z);
     for _ in 0..size {
-        if editor.check_for_block_absolute(cx, cy, cz, Some(&[STONE]), None) {
-            editor.set_block_absolute(block, cx, cy, cz, Some(&[STONE]), None);
+        if editor.check_for_block_absolute(cx, cy, cz, Some(ORE_SUBSTRATE), None) {
+            let block = if cy < deepslate_top_y {
+                ore.deepslate_variant
+            } else {
+                ore.block
+            };
+            editor.set_block_absolute(block, cx, cy, cz, Some(ORE_SUBSTRATE), None);
         }
         match rng.random_range(0..6) {
             0 => cx += 1,

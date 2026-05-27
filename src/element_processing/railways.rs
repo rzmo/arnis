@@ -1,4 +1,4 @@
-use crate::block_definitions::*;
+use crate::block_definitions::{rail_with_shape, BlockWithProperties, *};
 use crate::bresenham::bresenham_line;
 use crate::element_processing::bridge_styles::{
     decorate_bridge_above_deck, place_bridge_support_below_deck, resolve_bridge_style_with_outline,
@@ -27,6 +27,15 @@ const AIR_RADIUS: i32 = 1;
 
 /// Number of interior Y-levels (rail + 3 air = 4 blocks for minecart clearance).
 const INTERIOR_HEIGHT: i32 = 4;
+
+fn set_rail(editor: &mut WorldEditor, rail: BlockWithProperties, x: i32, y: i32, z: i32) {
+    let absolute_y = editor.get_absolute_y(x, y, z);
+    editor.set_block_with_properties_absolute(rail, x, absolute_y, z, None, None);
+}
+
+fn set_rail_absolute(editor: &mut WorldEditor, rail: BlockWithProperties, x: i32, y: i32, z: i32) {
+    editor.set_block_with_properties_absolute(rail, x, y, z, None, None);
+}
 
 /// Interval in centerline points between ceiling lights.
 const LIGHT_INTERVAL: usize = 8;
@@ -225,7 +234,7 @@ fn generate_at_grade_rail(editor: &mut WorldEditor, element: &ProcessedWay) {
                 next_ground,
             );
 
-            editor.set_block(rail_block, bx, 1, bz, None, None);
+            set_rail(editor, rail_block, bx, 1, bz);
 
             if tds.is_multiple_of(4) {
                 editor.set_block(OAK_LOG, bx, 0, bz, None, None);
@@ -356,7 +365,7 @@ fn generate_rail_bridge(
         editor.set_block_absolute(foundation_block, bx, y - 1, bz, None, None);
         let bed_block = if i % 4 == 0 { OAK_LOG } else { GRAVEL };
         editor.set_block_absolute(bed_block, bx, y, bz, None, None);
-        editor.set_block_absolute(rail_block, bx, y + 1, bz, None, None);
+        set_rail_absolute(editor, rail_block, bx, y + 1, bz);
 
         // Smooth perpendicular from neighbouring centerline points.
         let p_prev = prev_xz.unwrap_or((bx, bz));
@@ -405,7 +414,7 @@ fn determine_rail_with_slope(
     prev_ground: i32,
     current_ground: i32,
     next_ground: i32,
-) -> Block {
+) -> BlockWithProperties {
     // Ascending toward the *higher* neighbour.
     if next_ground > current_ground {
         if let Some((nx, nz)) = next {
@@ -422,21 +431,21 @@ fn determine_rail_with_slope(
 }
 
 /// Return the ascending rail variant that climbs from `from` toward `to`.
-fn ascending_toward(from: (i32, i32), to: (i32, i32)) -> Block {
+fn ascending_toward(from: (i32, i32), to: (i32, i32)) -> BlockWithProperties {
     let (fx, fz) = from;
     let (tx, tz) = to;
     let dx = tx - fx;
     let dz = tz - fz;
     if dx.abs() >= dz.abs() {
         if dx > 0 {
-            RAIL_ASCENDING_EAST
+            rail_with_shape("ascending_east")
         } else {
-            RAIL_ASCENDING_WEST
+            rail_with_shape("ascending_west")
         }
     } else if dz < 0 {
-        RAIL_ASCENDING_NORTH
+        rail_with_shape("ascending_north")
     } else {
-        RAIL_ASCENDING_SOUTH
+        rail_with_shape("ascending_south")
     }
 }
 
@@ -500,15 +509,15 @@ fn determine_rail_direction(
     current: (i32, i32),
     prev: Option<(i32, i32)>,
     next: Option<(i32, i32)>,
-) -> Block {
+) -> BlockWithProperties {
     let (x, z) = current;
 
     match (prev, next) {
         (Some((px, pz)), Some((nx, nz))) => {
             if px == nx {
-                RAIL_NORTH_SOUTH
+                rail_with_shape("north_south")
             } else if pz == nz {
-                RAIL_EAST_WEST
+                rail_with_shape("east_west")
             } else {
                 // Calculate relative movements
                 let from_prev = (px - x, pz - z);
@@ -516,18 +525,18 @@ fn determine_rail_direction(
 
                 match (from_prev, to_next) {
                     // East to North or North to East
-                    ((-1, 0), (0, -1)) | ((0, -1), (-1, 0)) => RAIL_NORTH_WEST,
+                    ((-1, 0), (0, -1)) | ((0, -1), (-1, 0)) => rail_with_shape("north_west"),
                     // West to North or North to West
-                    ((1, 0), (0, -1)) | ((0, -1), (1, 0)) => RAIL_NORTH_EAST,
+                    ((1, 0), (0, -1)) | ((0, -1), (1, 0)) => rail_with_shape("north_east"),
                     // East to South or South to East
-                    ((-1, 0), (0, 1)) | ((0, 1), (-1, 0)) => RAIL_SOUTH_WEST,
+                    ((-1, 0), (0, 1)) | ((0, 1), (-1, 0)) => rail_with_shape("south_west"),
                     // West to South or South to West
-                    ((1, 0), (0, 1)) | ((0, 1), (1, 0)) => RAIL_SOUTH_EAST,
+                    ((1, 0), (0, 1)) | ((0, 1), (1, 0)) => rail_with_shape("south_east"),
                     _ => {
                         if (px - x).abs() > (pz - z).abs() {
-                            RAIL_EAST_WEST
+                            rail_with_shape("east_west")
                         } else {
-                            RAIL_NORTH_SOUTH
+                            rail_with_shape("north_south")
                         }
                     }
                 }
@@ -535,14 +544,14 @@ fn determine_rail_direction(
         }
         (Some((px, pz)), None) | (None, Some((px, pz))) => {
             if px == x {
-                RAIL_NORTH_SOUTH
+                rail_with_shape("north_south")
             } else if pz == z {
-                RAIL_EAST_WEST
+                rail_with_shape("east_west")
             } else {
-                RAIL_NORTH_SOUTH
+                rail_with_shape("north_south")
             }
         }
-        (None, None) => RAIL_NORTH_SOUTH,
+        (None, None) => rail_with_shape("north_south"),
     }
 }
 
@@ -599,7 +608,7 @@ pub fn generate_roller_coaster(editor: &mut WorldEditor, element: &ProcessedWay)
                     );
 
                     // Place rail on top of the foundation
-                    editor.set_block(rail_block, bx, elevation_height + 1, bz, None, None);
+                    set_rail(editor, rail_block, bx, elevation_height + 1, bz);
 
                     // Place support pillars every pillar_interval blocks
                     if bx % pillar_interval == 0 && bz % pillar_interval == 0 {
@@ -713,7 +722,7 @@ fn generate_subway_shell(
                 next_ground,
             );
             // Whitelist: allow overwriting the STONE_BRICKS placeholder.
-            editor.set_block_absolute(
+            editor.set_block_with_properties_absolute(
                 rail_block,
                 bx,
                 floor_y + 1,

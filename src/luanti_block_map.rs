@@ -249,7 +249,15 @@ fn to_mineclonia_node(block: Block, props: Option<&Value>) -> LuantiNode {
         113 => "mcl_signs:wall_sign",
         114 => "mcl_walls:andesite",
         115 => "mcl_walls:stonebrick",
-        116..=125 => "mcl_minecarts:rail",
+        116..=117 => "mcl_minecarts:rail",
+        118 => "mcl_core:stone_with_coal",  // DEEPSLATE_COAL_ORE (approx)
+        119 => "mcl_core:stone_with_iron",  // DEEPSLATE_IRON_ORE (approx)
+        120 => "mcl_copper:stone_with_copper", // DEEPSLATE_COPPER_ORE (approx)
+        121 => "mcl_core:stone_with_gold",  // DEEPSLATE_GOLD_ORE (approx)
+        122 => "mcl_core:stone_with_redstone", // DEEPSLATE_REDSTONE_ORE (approx)
+        123 => "mcl_core:stone_with_lapis", // DEEPSLATE_LAPIS_ORE (approx)
+        124 => "mcl_core:stone_with_diamond", // DEEPSLATE_DIAMOND_ORE (approx)
+        125 => "mcl_core:stone_with_emerald", // DEEPSLATE_EMERALD_ORE (approx)
         126 => "mcl_core:coarse_dirt",
         127 => "mcl_core:stone_with_iron",
         128 => "mcl_core:stone_with_coal",

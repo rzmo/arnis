@@ -1096,6 +1096,24 @@ impl<'a> WorldEditor<'a> {
             .bulk_fill_chunk_sections_below(chunk_x, chunk_z, section_y_max, block)
     }
 
+    /// See [`WorldToModify::bulk_fill_chunk_sections_in_range`].
+    pub fn bulk_fill_chunk_sections_in_range(
+        &mut self,
+        chunk_x: i32,
+        chunk_z: i32,
+        section_y_min: i8,
+        section_y_max: i8,
+        block: Block,
+    ) -> bool {
+        self.world.bulk_fill_chunk_sections_in_range(
+            chunk_x,
+            chunk_z,
+            section_y_min,
+            section_y_max,
+            block,
+        )
+    }
+
     /// Saves all changes made to the world by writing to the appropriate format.
     ///
     /// Returns `Err` on I/O failure so callers can abort the generation pipeline

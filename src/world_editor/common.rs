@@ -575,16 +575,17 @@ impl WorldToModify {
         }
     }
 
-    /// Fill empty (Uniform(AIR)) sections of a chunk up to `section_y_max` with
-    /// `Uniform(block)`. Returns true only if every section in the range was empty.
-    pub fn bulk_fill_chunk_sections_below(
+    /// Fill empty (Uniform(AIR)) sections from `section_y_min` through `section_y_max`
+    /// with `Uniform(block)`. Returns true only if every section in the range was empty.
+    pub fn bulk_fill_chunk_sections_in_range(
         &mut self,
         chunk_x: i32,
         chunk_z: i32,
+        section_y_min: i8,
         section_y_max: i8,
         block: Block,
     ) -> bool {
-        if section_y_max < MIN_SECTION_Y {
+        if section_y_max < section_y_min || section_y_max < MIN_SECTION_Y {
             return true;
         }
         let region_x = chunk_x >> 5;
@@ -596,7 +597,8 @@ impl WorldToModify {
             .or_default();
 
         let mut all_clean = true;
-        for section_y in MIN_SECTION_Y..=section_y_max {
+        let start = section_y_min.max(MIN_SECTION_Y);
+        for section_y in start..=section_y_max {
             let section = chunk.sections.entry(section_y).or_default();
             let is_empty = section.properties.is_empty()
                 && matches!(&section.storage, BlockStorage::Uniform(b) if *b == AIR);
@@ -607,6 +609,24 @@ impl WorldToModify {
             }
         }
         all_clean
+    }
+
+    /// Fill empty (Uniform(AIR)) sections of a chunk up to `section_y_max` with
+    /// `Uniform(block)`. Returns true only if every section in the range was empty.
+    pub fn bulk_fill_chunk_sections_below(
+        &mut self,
+        chunk_x: i32,
+        chunk_z: i32,
+        section_y_max: i8,
+        block: Block,
+    ) -> bool {
+        self.bulk_fill_chunk_sections_in_range(
+            chunk_x,
+            chunk_z,
+            MIN_SECTION_Y,
+            section_y_max,
+            block,
+        )
     }
 
     /// Scan every section and collapse any that are entirely one block type

@@ -29,7 +29,7 @@ use crate::ground::Ground;
 use crate::land_cover;
 use crate::progress::emit_gui_progress_update;
 use crate::world_editor::WorldEditor;
-use crate::world_editor::MIN_Y;
+use crate::world_editor::{MIN_SECTION_Y, MIN_Y};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::Rng;
@@ -120,6 +120,7 @@ pub fn generate_ground_layer(
 ) -> Result<(), String> {
     let has_land_cover = ground.has_land_cover();
     let terrain_enabled = ground.elevation_enabled;
+    let deepslate_enabled = args.ground_level > DEFAULT_GROUND_LEVEL;
 
     let total_blocks: u64 = xzbbox.bounding_rect().total_blocks();
     let desired_updates: u64 = 1500;
@@ -204,9 +205,48 @@ pub fn generate_ground_layer(
                     };
                     // section_top = section_y*16 + 15 <= min_ground_y - 3
                     let top_buried = (min_ground_y - 18).div_euclid(16) as i8;
-                    if top_buried >= crate::world_editor::MIN_SECTION_Y {
-                        let all_clean = editor
-                            .bulk_fill_chunk_sections_below(chunk_x, chunk_z, top_buried, STONE);
+                    if top_buried >= MIN_SECTION_Y {
+                        let mut all_clean = true;
+                        if deepslate_enabled {
+                            let chunk_deepslate_h =
+                                column_deepslate_height(min_ground_y, args.ground_level);
+                            if chunk_deepslate_h > 0 {
+                                let deepslate_top_y = MIN_Y + chunk_deepslate_h - 1;
+                                let deepslate_top_section = (deepslate_top_y >> 4) as i8;
+                                if deepslate_top_section > MIN_SECTION_Y {
+                                    all_clean &= editor.bulk_fill_chunk_sections_in_range(
+                                        chunk_x,
+                                        chunk_z,
+                                        MIN_SECTION_Y,
+                                        deepslate_top_section - 1,
+                                        DEEPSLATE,
+                                    );
+                                }
+                                if deepslate_top_section < top_buried {
+                                    all_clean &= editor.bulk_fill_chunk_sections_in_range(
+                                        chunk_x,
+                                        chunk_z,
+                                        deepslate_top_section + 1,
+                                        top_buried,
+                                        STONE,
+                                    );
+                                }
+                            } else {
+                                all_clean = editor.bulk_fill_chunk_sections_below(
+                                    chunk_x,
+                                    chunk_z,
+                                    top_buried,
+                                    STONE,
+                                );
+                            }
+                        } else {
+                            all_clean = editor.bulk_fill_chunk_sections_below(
+                                chunk_x,
+                                chunk_z,
+                                top_buried,
+                                STONE,
+                            );
+                        }
                         if all_clean {
                             column_fill_y_min = (top_buried as i32 + 1) * 16;
                         }
@@ -1112,14 +1152,51 @@ pub fn generate_ground_layer(
 
                     // Fill underground; column_fill_y_min skips already-Uniform sections.
                     if args.fillground {
-                        editor.fill_column_absolute(
-                            STONE,
-                            x,
-                            z,
-                            column_fill_y_min,
-                            ground_y - 3,
-                            true, // skip_existing: don't overwrite blocks placed by element processing
-                        );
+                        let fill_top = ground_y - 3;
+                        if deepslate_enabled {
+                            let deepslate_h =
+                                column_deepslate_height(ground_y, args.ground_level);
+                            if deepslate_h > 0 {
+                                let stone_start = MIN_Y + deepslate_h;
+                                if stone_start <= fill_top {
+                                    editor.fill_column_absolute(
+                                        STONE,
+                                        x,
+                                        z,
+                                        column_fill_y_min.max(stone_start),
+                                        fill_top,
+                                        true,
+                                    );
+                                }
+                                let deepslate_top = (MIN_Y + deepslate_h - 1).max(MIN_Y + 1);
+                                editor.fill_column_absolute(
+                                    DEEPSLATE,
+                                    x,
+                                    z,
+                                    column_fill_y_min,
+                                    deepslate_top,
+                                    true,
+                                );
+                            } else {
+                                editor.fill_column_absolute(
+                                    STONE,
+                                    x,
+                                    z,
+                                    column_fill_y_min,
+                                    fill_top,
+                                    true,
+                                );
+                            }
+                        } else {
+                            editor.fill_column_absolute(
+                                STONE,
+                                x,
+                                z,
+                                column_fill_y_min,
+                                fill_top,
+                                true,
+                            );
+                        }
                     }
                     // Generate a bedrock level at MIN_Y
                     editor.set_block_absolute(BEDROCK, x, MIN_Y, z, None, Some(&[BEDROCK]));
@@ -1187,3 +1264,16 @@ pub(crate) fn value_noise_01(x: i32, z: i32, scale: i32) -> f64 {
     let b = v01 * (1.0 - fx) + v11 * fx;
     a * (1.0 - fz) + b * fz
 }
+
+const DEFAULT_GROUND_LEVEL: i32 = -62;
+const MAX_DEEPSLATE_BAND: i32 = 64;
+
+#[inline]
+fn column_deepslate_height(ground_y: i32, ground_level: i32) -> i32 {
+    if ground_level <= DEFAULT_GROUND_LEVEL {
+        return 0;
+    }
+    let underground_height = (ground_y - 3) - MIN_Y;
+    (underground_height / 2).min(MAX_DEEPSLATE_BAND)
+}
+
