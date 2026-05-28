@@ -73,6 +73,20 @@ const ORE_PLACEMENTS: &[OrePlacement] = &[
         rng_salt: 0xC0A1_0001,
         min_height_above_base: None,
     },
+    OrePlacement {
+        block: COAL_ORE,
+        deepslate_variant: DEEPSLATE_COAL_ORE,
+        vanilla_y_min: 40,
+        vanilla_y_max: 96,
+        distribution: HeightDistribution::UpperTriangle,
+        size_min: 6,
+        size_max: 12,
+        spawn_tries: 10,
+        air_exposure_skip: 0.3,
+        rarity_one_in: None,
+        rng_salt: 0xC0A1_0002,
+        min_height_above_base: None,
+    },
     // Iron
     OrePlacement {
         block: IRON_ORE,
@@ -537,9 +551,10 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     const COAL_MAIN: &OrePlacement = &ORE_PLACEMENTS[0];
-    const LAPIS_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[7];
-    const GOLD_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[9];
-    const DIAMOND_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[11];
+    const LAPIS_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[8];
+    const GOLD_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[10];
+    const COAL_UPPER: &OrePlacement = &ORE_PLACEMENTS[1];
+    const DIAMOND_TRIANGLE: &OrePlacement = &ORE_PLACEMENTS[12];
 
     #[test]
     fn sea_level_anchor_maps_floor_and_surface() {
@@ -578,8 +593,18 @@ mod tests {
             "coal mean {coal_mean} should stay below surface band at {top}"
         );
         assert!(
-            clamped_vanilla_band(&ORE_PLACEMENTS[3], ground_y).is_none(),
+            clamped_vanilla_band(&ORE_PLACEMENTS[4], ground_y).is_none(),
             "mountain iron blob should not run when the column is shorter than vanilla Y=80"
+        );
+        let mut rng = ChaCha8Rng::seed_from_u64(2);
+        let mut upper_sum = 0i64;
+        for _ in 0..N {
+            upper_sum += sample_placement_y(COAL_UPPER, ground_y, &mut rng).unwrap() as i64;
+        }
+        let upper_mean = upper_sum as f64 / f64::from(N);
+        assert!(
+            upper_mean > coal_mean,
+            "upper coal blob mean {upper_mean} should sit above main coal {coal_mean}"
         );
     }
 
@@ -628,7 +653,7 @@ mod tests {
 
     #[test]
     fn copper_triangle_peaks_mid_column_not_bottom() {
-        const COPPER: &OrePlacement = &ORE_PLACEMENTS[4];
+        const COPPER: &OrePlacement = &ORE_PLACEMENTS[5];
         let ground_y = 64;
         let (bottom, top) = underground_bounds(ground_y).unwrap();
         let (v_lo, v_hi) = clamped_vanilla_band(COPPER, ground_y).unwrap();
