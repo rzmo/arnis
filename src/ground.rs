@@ -4,6 +4,7 @@ use crate::coordinate_system::{
     geographic::LLBBox,
 };
 use crate::elevation::compute_grid_dims;
+use crate::elevation::postprocess::AUTO_GROUND_LEVEL_TARGET_MC_Y;
 use crate::elevation_data::{fetch_elevation_data, ElevationData};
 use crate::land_cover::{self, LandCoverData};
 use crate::osm_parser::ProcessedElement;
@@ -607,6 +608,13 @@ pub fn generate_ground_data(args: &mut Args) -> Ground {
             args.aws_only_elevation,
         );
         args.ground_level = ground.floor_level();
+        if args.auto_ground_level {
+            println!(
+                "  Auto ground level: {} (mean terrain → Y {:.0})",
+                args.ground_level.to_string().bright_white().bold(),
+                AUTO_GROUND_LEVEL_TARGET_MC_Y,
+            );
+        }
         if args.debug {
             ground.save_debug_image("elevation_debug");
             ground.save_land_cover_debug_image("landcover_debug");

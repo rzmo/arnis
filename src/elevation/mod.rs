@@ -249,7 +249,6 @@ pub fn fetch_elevation_data(
                 AUTO_GROUND_LEVEL_TARGET_MC_Y
             )
         };
-        println!("{msg}");
         emit_gui_progress_update(18.0, &msg);
         #[cfg(feature = "gui")]
         crate::telemetry::send_log(crate::telemetry::LogLevel::Info, &msg);
