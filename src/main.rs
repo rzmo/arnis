@@ -228,8 +228,13 @@ fn run_cli() {
     // Fetch supplementary building data from Overture Maps
     {
         println!("{} Fetching Overture Maps data...", "  [+]".bold());
-        let overture_elements =
-            overture::fetch_overture_buildings(&args.bbox, args.scale, args.debug);
+        let overture_elements = overture::fetch_overture_buildings_anchored(
+            &args.bbox,
+            args.scale,
+            anchor_lat,
+            anchor_lng,
+            args.debug,
+        );
         if !overture_elements.is_empty() {
             let before_count = parsed_elements.len();
             let unique_overture =

@@ -1,7 +1,7 @@
 use super::cartesian::{XZBBox, XZPoint, XZVector};
 use super::geographic::{LLBBox, LLPoint};
 
-/// Transform geographic space (within llbbox) to a local tangential cartesian space (within xzbbox)
+/// Transform geographic space (within llbbox) to world Minecraft XZ coordinates.
 pub struct CoordTransformer {
     len_lat: f64,
     len_lng: f64,
@@ -9,6 +9,9 @@ pub struct CoordTransformer {
     scale_factor_z: f64,
     min_lat: f64,
     min_lng: f64,
+    /// World-space origin for this bbox's NW corner (`max_lat`, `min_lng` in geo).
+    world_offset_x: i32,
+    world_offset_z: i32,
 }
 
 impl CoordTransformer {
@@ -56,14 +59,14 @@ impl CoordTransformer {
             .map_err(|e| format!("{}:\n{}", &err_header, e))?;
 
         let avg_lat = (llbbox.min().lat() + llbbox.max().lat()) * 0.5;
-        let offset_x =
+        let world_offset_x =
             (lon_distance(avg_lat, anchor_lng, llbbox.min().lng()).floor() * scale) as i32;
-        let offset_z =
+        let world_offset_z =
             (lat_distance(llbbox.max().lat(), anchor_lat).floor() * scale) as i32;
 
         xzbbox = xzbbox + XZVector {
-            dx: offset_x,
-            dz: offset_z,
+            dx: world_offset_x,
+            dz: world_offset_z,
         };
 
         Ok((
@@ -74,21 +77,25 @@ impl CoordTransformer {
                 scale_factor_z,
                 min_lat: llbbox.min().lat(),
                 min_lng: llbbox.min().lng(),
+                world_offset_x,
+                world_offset_z,
             },
             xzbbox,
         ))
     }
 
     pub fn transform_point(&self, llpoint: LLPoint) -> XZPoint {
-        // Calculate the relative position within the bounding box
+        // Relative position within the bounding box (0 at min_lng / max_lat).
         let rel_x: f64 = (llpoint.lng() - self.min_lng) / self.len_lng;
         let rel_z: f64 = 1.0 - (llpoint.lat() - self.min_lat) / self.len_lat;
 
-        // Apply scaling factors for each dimension and convert to Minecraft coordinates
-        let x: i32 = (rel_x * self.scale_factor_x) as i32;
-        let z: i32 = (rel_z * self.scale_factor_z) as i32;
+        let local_x: i32 = (rel_x * self.scale_factor_x) as i32;
+        let local_z: i32 = (rel_z * self.scale_factor_z) as i32;
 
-        XZPoint::new(x, z)
+        XZPoint::new(
+            local_x + self.world_offset_x,
+            local_z + self.world_offset_z,
+        )
     }
 }
 
@@ -198,6 +205,39 @@ mod test {
         test_llxztransform_one_scale_one_factor(10.0, -1.2, 2.0);
         test_llxztransform_one_scale_one_factor(0.4, 0.3, -0.2);
         test_llxztransform_one_scale_one_factor(0.1, 0.2, 0.7);
+    }
+
+    #[test]
+    fn anchored_transform_point_matches_xzbbox_corners() {
+        let west = LLBBox::new(54.0, 9.0, 54.01, 9.01).unwrap();
+        let east = LLBBox::new(54.0, 9.02, 54.01, 9.03).unwrap();
+        let anchor_lat = west.max().lat();
+        let anchor_lng = west.min().lng();
+        let scale = 1.0;
+
+        let (west_t, west_box) =
+            CoordTransformer::llbbox_to_xzbbox_anchored(&west, scale, anchor_lat, anchor_lng)
+                .unwrap();
+        let (east_t, east_box) =
+            CoordTransformer::llbbox_to_xzbbox_anchored(&east, scale, anchor_lat, anchor_lng)
+                .unwrap();
+
+        let west_nw = west_t
+            .transform_point(LLPoint::new(west.max().lat(), west.min().lng()).unwrap());
+        assert_eq!(west_nw.x, west_box.min_x());
+        assert_eq!(west_nw.z, west_box.min_z());
+
+        let east_nw = east_t
+            .transform_point(LLPoint::new(east.max().lat(), east.min().lng()).unwrap());
+        assert_eq!(east_nw.x, east_box.min_x());
+        assert_eq!(east_nw.z, east_box.min_z());
+        assert!(east_box.min_x() > west_box.max_x());
+        assert_eq!(east_box.min_z(), west_box.min_z());
+
+        let east_se = east_t
+            .transform_point(LLPoint::new(east.min().lat(), east.max().lng()).unwrap());
+        assert_eq!(east_se.x, east_box.max_x());
+        assert_eq!(east_se.z, east_box.max_z());
     }
 
     #[test]

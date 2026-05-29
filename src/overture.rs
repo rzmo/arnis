@@ -83,7 +83,23 @@ struct OvertureBuilding {
 /// Buildings whose primary source is "OpenStreetMap" are excluded to avoid
 /// duplicates with the existing OSM data pipeline.
 pub fn fetch_overture_buildings(bbox: &LLBBox, scale: f64, debug: bool) -> Vec<ProcessedElement> {
-    match fetch_overture_buildings_inner(bbox, scale, debug) {
+    fetch_overture_buildings_anchored(
+        bbox,
+        scale,
+        bbox.max().lat(),
+        bbox.min().lng(),
+        debug,
+    )
+}
+
+pub fn fetch_overture_buildings_anchored(
+    bbox: &LLBBox,
+    scale: f64,
+    anchor_lat: f64,
+    anchor_lng: f64,
+    debug: bool,
+) -> Vec<ProcessedElement> {
+    match fetch_overture_buildings_inner(bbox, scale, anchor_lat, anchor_lng, debug) {
         Ok(elements) => elements,
         Err(e) => {
             eprintln!(
@@ -186,6 +202,8 @@ pub fn deduplicate_against_osm(
 fn fetch_overture_buildings_inner(
     bbox: &LLBBox,
     scale: f64,
+    anchor_lat: f64,
+    anchor_lng: f64,
     debug: bool,
 ) -> Result<Vec<ProcessedElement>, Box<dyn std::error::Error>> {
     let client = Client::builder()
@@ -255,7 +273,8 @@ fn fetch_overture_buildings_inner(
     }
 
     // Convert to ProcessedElements and clip to xzbbox (matching OSM clipping)
-    let (coord_transformer, xzbbox) = CoordTransformer::llbbox_to_xzbbox(bbox, scale)?;
+    let (coord_transformer, xzbbox) =
+        CoordTransformer::llbbox_to_xzbbox_anchored(bbox, scale, anchor_lat, anchor_lng)?;
 
     let elements: Vec<ProcessedElement> = all_buildings
         .into_iter()
