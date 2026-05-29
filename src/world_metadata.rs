@@ -50,6 +50,15 @@ impl WorldGenerationSettings {
             arnis_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
+
+    /// Settings written to `metadata.json` after ground generation (resolved floor Y).
+    pub fn for_metadata_persist(args: &Args) -> Self {
+        let mut settings = Self::from_args(args);
+        if settings.auto_ground_level {
+            settings.auto_ground_level = false;
+        }
+        settings
+    }
 }
 
 /// Metadata saved with the world (`metadata.json` in the world folder).
@@ -193,6 +202,18 @@ pub fn validate_append_hard(
     Ok(())
 }
 
+/// Forces append runs to use the stored world floor height so adjacent areas stay flush.
+pub fn apply_append_ground_settings(meta: &WorldMetadata, args: &mut Args) -> Result<(), String> {
+    let stored = meta.settings.as_ref().ok_or_else(|| {
+        "This world has no generation settings in metadata.json. \
+         Regenerate the first area with a current Arnis build, or set ground level manually to match the existing world."
+            .to_string()
+    })?;
+    args.ground_level = stored.ground_level;
+    args.auto_ground_level = false;
+    Ok(())
+}
+
 /// Soft warnings when append settings differ (coordinate-safe but visually inconsistent).
 pub fn append_setting_warnings(
     stored: &WorldGenerationSettings,
@@ -207,11 +228,6 @@ pub fn append_setting_warnings(
     }
     if stored.land_cover != requested.land_cover {
         warnings.push("Land cover setting differs from the existing world.".to_string());
-    }
-    if stored.ground_level != requested.ground_level
-        || stored.auto_ground_level != requested.auto_ground_level
-    {
-        warnings.push("Ground level settings differ from the existing world.".to_string());
     }
     if stored.disable_height_limit != requested.disable_height_limit {
         warnings.push("Extend build height setting differs from the existing world.".to_string());
@@ -262,6 +278,46 @@ mod tests {
         meta.union_with_area(&ll2, &xzb2);
         assert!(meta.min_mc_x <= xzb1.min_x().min(xzb2.min_x()));
         assert!(meta.max_mc_x >= xzb1.max_x().max(xzb2.max_x()));
+    }
+
+    #[test]
+    fn apply_append_ground_settings_uses_stored_floor() {
+        let mut args = default_args();
+        args.ground_level = -50;
+        args.auto_ground_level = true;
+
+        let mut meta = WorldMetadata::build_new(
+            &get_llbbox_arnis(),
+            &crate::coordinate_system::transformation::CoordTransformer::llbbox_to_xzbbox(
+                &get_llbbox_arnis(),
+                1.0,
+            )
+            .unwrap()
+            .1,
+            1.0,
+            WorldGenerationSettings {
+                ground_level: -71,
+                auto_ground_level: true,
+                ..WorldGenerationSettings::from_args(&default_args())
+            },
+        );
+
+        apply_append_ground_settings(&meta, &mut args).unwrap();
+        assert_eq!(args.ground_level, -71);
+        assert!(!args.auto_ground_level);
+
+        meta.settings = None;
+        assert!(apply_append_ground_settings(&meta, &mut args).is_err());
+    }
+
+    #[test]
+    fn for_metadata_persist_clears_auto_flag() {
+        let mut args = default_args();
+        args.auto_ground_level = true;
+        args.ground_level = -55;
+        let persisted = WorldGenerationSettings::for_metadata_persist(&args);
+        assert_eq!(persisted.ground_level, -55);
+        assert!(!persisted.auto_ground_level);
     }
 
     fn default_args() -> crate::args::Args {

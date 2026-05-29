@@ -1612,6 +1612,7 @@ function setWorldMode(mode) {
   if (worldMode === "new") {
     lockRotationForAppend(false);
     unlockScale();
+    unlockGroundLevelForAppend();
     return;
   }
 
@@ -1637,6 +1638,8 @@ function existingRowVisible() {
 
 window.setWorldMode = setWorldMode;
 
+let groundLockedForAppend = false;
+
 function lockScaleFromMetadata(scale) {
   const slider = document.getElementById("scale-value-slider");
   const sliderValue = document.getElementById("slider-value");
@@ -1652,6 +1655,33 @@ function unlockScale() {
   if (!slider || !scaleLockedForAppend) return;
   slider.disabled = false;
   scaleLockedForAppend = false;
+}
+
+function lockGroundLevelFromMetadata(settings) {
+  if (!settings || settings.ground_level == null) return;
+  setGroundLevelMode("manual");
+  const groundInput = document.getElementById("ground-level");
+  const manualBtn = document.getElementById("ground-level-mode-manual");
+  const autoBtn = document.getElementById("ground-level-mode-auto");
+  if (groundInput) {
+    groundInput.value = String(settings.ground_level);
+    groundInput.disabled = true;
+  }
+  if (manualBtn) manualBtn.disabled = true;
+  if (autoBtn) autoBtn.disabled = true;
+  groundLockedForAppend = true;
+}
+
+function unlockGroundLevelForAppend() {
+  if (!groundLockedForAppend) return;
+  const groundInput = document.getElementById("ground-level");
+  const manualBtn = document.getElementById("ground-level-mode-manual");
+  const autoBtn = document.getElementById("ground-level-mode-auto");
+  if (groundInput) groundInput.disabled = false;
+  if (manualBtn) manualBtn.disabled = false;
+  if (autoBtn) autoBtn.disabled = !isTerrainGenerationMode();
+  groundLockedForAppend = false;
+  setGroundLevelMode(getGroundLevelMode());
 }
 
 function lockRotationForAppend(lock) {
@@ -1678,11 +1708,6 @@ function buildAppendSettingWarnings(meta) {
   if (s.land_cover !== document.getElementById("land-cover-toggle")?.checked) {
     warnings.push("Land cover differs.");
   }
-  const autoGl = isAutoGroundLevelEnabled();
-  const gl = autoGl ? -62 : parseInt(document.getElementById("ground-level")?.value || "-62", 10);
-  if (s.ground_level !== gl || s.auto_ground_level !== autoGl) {
-    warnings.push("Ground level differs.");
-  }
   if (s.disable_height_limit !== document.getElementById("disable-height-limit-toggle")?.checked) {
     warnings.push("Height limit setting differs.");
   }
@@ -1695,6 +1720,9 @@ async function loadExistingWorldMetadata(path) {
     const meta = await invoke("gui_read_world_settings", { worldPath: path });
     if (meta.scale != null) {
       lockScaleFromMetadata(meta.scale);
+    }
+    if (meta.settings) {
+      lockGroundLevelFromMetadata(meta.settings);
     }
     const warnings = buildAppendSettingWarnings(meta);
     if (warnEl) {
@@ -1709,6 +1737,7 @@ async function loadExistingWorldMetadata(path) {
     return meta;
   } catch (err) {
     unlockScale();
+    unlockGroundLevelForAppend();
     if (warnEl) {
       warnEl.textContent = String(err);
       warnEl.hidden = false;

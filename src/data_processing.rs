@@ -83,7 +83,7 @@ pub fn generate_world_with_options(
     editor.set_append_mode(options.append);
     editor.set_generation_metadata(
         args.scale,
-        WorldGenerationSettings::from_args(args),
+        WorldGenerationSettings::for_metadata_persist(args),
     );
     let ground = Arc::new(ground);
 

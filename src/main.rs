@@ -195,6 +195,14 @@ fn run_cli() {
                 eprintln!("{} {}", "Warning:".yellow().bold(), warning);
             }
         }
+        world_metadata::apply_append_ground_settings(&meta, &mut args).unwrap_or_else(|e| {
+            eprintln!("{} {}", "Error:".red().bold(), e);
+            std::process::exit(1);
+        });
+        println!(
+            "  Using stored ground level: {}",
+            args.ground_level.to_string().bright_white().bold()
+        );
         (meta.anchor_lat, meta.anchor_lng)
     } else {
         (args.bbox.max().lat(), args.bbox.min().lng())

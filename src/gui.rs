@@ -1218,6 +1218,7 @@ fn gui_start_generation(
                         crate::telemetry::send_log(crate::telemetry::LogLevel::Warning, &warning);
                     }
                 }
+                crate::world_metadata::apply_append_ground_settings(&meta, &mut args)?;
                 (meta.anchor_lat, meta.anchor_lng)
             } else {
                 (args.bbox.max().lat(), args.bbox.min().lng())
