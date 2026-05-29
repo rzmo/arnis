@@ -77,6 +77,7 @@
   "anonymous_crash_reports": "Anonymous Crash Reports",
   "world_mode_new": "New world",
   "world_mode_existing": "Add to existing",
+  "world_mode_hint": "Choose a world folder that contains metadata.json (from a previous Arnis run). This is not the Settings save path.",
   "existing_world_placeholder": "Select an Arnis Java world folder",
   "append_settings_warning": "Some generation settings differ from the existing world."
 }

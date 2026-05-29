@@ -148,6 +148,9 @@ async function applyLocalization(localization) {
     "div[data-localize='update_modal_download_note']": "update_modal_download_note",
     "button[data-localize='update_view_on_github']": "update_view_on_github",
     "button[data-localize='update_download']": "update_download",
+    "button[data-localize='world_mode_new']": "world_mode_new",
+    "button[data-localize='world_mode_existing']": "world_mode_existing",
+    "p[data-localize='world_mode_hint']": "world_mode_hint",
 
     // Placeholder strings
     "input[id='bbox-coords']": "placeholder_bbox",
@@ -760,6 +763,7 @@ function initSettings() {
 
     // Restore correct format toggle state after localization
     updateFormatToggleUI(selectedWorldFormat);
+    updateWorldModeVisibility();
   });
 
   // Tile theme selector
@@ -1524,26 +1528,93 @@ function displayBboxInfoText(bboxText) {
 }
 
 let worldPath = "";
-let worldMode = localStorage.getItem("arnis-world-mode") || "new";
+let worldMode = normalizeWorldMode(localStorage.getItem("arnis-world-mode"));
 let existingWorldPath = localStorage.getItem("arnis-existing-world-path") || "";
 let scaleLockedForAppend = false;
+
+function normalizeWorldMode(stored) {
+  return stored === "existing" ? "existing" : "new";
+}
 
 function updateWorldModeVisibility() {
   const panel = document.getElementById("world-target-panel");
   const existingRow = document.getElementById("existing-world-row");
   const warnEl = document.getElementById("append-settings-warning");
+  const hintEl = document.getElementById("world-target-hint");
+  const newBtn = document.getElementById("world-mode-new");
+  const existingBtn = document.getElementById("world-mode-existing");
   if (!panel) return;
+
   const showJava = selectedWorldFormat === "java";
   panel.hidden = !showJava;
+  panel.dataset.mode = worldMode;
+
+  if (newBtn) {
+    newBtn.classList.toggle("world-mode-active", worldMode === "new");
+    newBtn.setAttribute("aria-pressed", worldMode === "new" ? "true" : "false");
+  }
+  if (existingBtn) {
+    existingBtn.classList.toggle("world-mode-active", worldMode === "existing");
+    existingBtn.setAttribute(
+      "aria-pressed",
+      worldMode === "existing" ? "true" : "false",
+    );
+  }
+
   if (!showJava) {
     if (existingRow) existingRow.hidden = true;
     if (warnEl) warnEl.hidden = true;
+    if (hintEl) hintEl.hidden = true;
     return;
   }
-  if (existingRow) {
-    existingRow.hidden = worldMode !== "existing";
+
+  const append = worldMode === "existing";
+  if (existingRow) existingRow.hidden = !append;
+  if (hintEl) hintEl.hidden = !append;
+  if (warnEl && !append) {
+    warnEl.hidden = true;
+    warnEl.textContent = "";
   }
 }
+
+/**
+ * New world vs append-to-existing (Java only). Exposed on window for inline onclick,
+ * same pattern as setWorldFormat.
+ */
+function setWorldMode(mode) {
+  worldMode = normalizeWorldMode(mode);
+  localStorage.setItem("arnis-world-mode", worldMode);
+
+  const pathInput = document.getElementById("existing-world-path");
+  updateWorldModeVisibility();
+
+  if (worldMode === "new") {
+    lockRotationForAppend(false);
+    unlockScale();
+    return;
+  }
+
+  lockRotationForAppend(true);
+  if (existingWorldPath && pathInput) {
+    pathInput.value = existingWorldPath;
+    loadExistingWorldMetadata(existingWorldPath).catch(() => {});
+  }
+
+  if (existingRowVisible()) {
+    pathInput?.focus();
+    document.getElementById("existing-world-row")?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }
+}
+
+function existingRowVisible() {
+  const row = document.getElementById("existing-world-row");
+  return row && !row.hidden;
+}
+
+window.setWorldMode = setWorldMode;
 
 function lockScaleFromMetadata(scale) {
   const slider = document.getElementById("scale-value-slider");
@@ -1626,45 +1697,8 @@ async function loadExistingWorldMetadata(path) {
 }
 
 function initWorldMode() {
-  const newBtn = document.getElementById("world-mode-new");
-  const existingBtn = document.getElementById("world-mode-existing");
   const pathInput = document.getElementById("existing-world-path");
   const browseBtn = document.getElementById("existing-world-browse");
-  if (!newBtn || !existingBtn) return;
-
-  const applyMode = (mode) => {
-    worldMode = mode;
-    localStorage.setItem("arnis-world-mode", mode);
-    newBtn.classList.toggle("world-mode-active", mode === "new");
-    existingBtn.classList.toggle("world-mode-active", mode === "existing");
-    updateWorldModeVisibility();
-    if (mode === "new") {
-      lockRotationForAppend(false);
-      unlockScale();
-      const warnEl = document.getElementById("append-settings-warning");
-      if (warnEl) {
-        warnEl.hidden = true;
-        warnEl.textContent = "";
-      }
-    } else {
-      lockRotationForAppend(true);
-      if (existingWorldPath && pathInput) {
-        pathInput.value = existingWorldPath;
-        loadExistingWorldMetadata(existingWorldPath).catch(() => {});
-      }
-    }
-  };
-
-  newBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    applyMode("new");
-  });
-  existingBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    applyMode("existing");
-  });
 
   const pickExistingWorld = async () => {
     const start = (pathInput?.value?.trim() || existingWorldPath || savePath || "").trim();
@@ -1703,7 +1737,7 @@ function initWorldMode() {
     }
   });
 
-  applyMode(worldMode);
+  setWorldMode(worldMode);
   if (existingWorldPath && pathInput) {
     pathInput.value = existingWorldPath;
   }

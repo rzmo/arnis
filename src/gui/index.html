@@ -54,9 +54,10 @@
             </div>
             <div class="world-target-panel" id="world-target-panel">
               <div class="button-block-row world-mode-row" id="world-mode-row">
-                <button type="button" id="world-mode-new" class="world-mode-btn world-mode-active" data-localize="world_mode_new">New world</button>
-                <button type="button" id="world-mode-existing" class="world-mode-btn" data-localize="world_mode_existing">Add to existing</button>
+                <button type="button" id="world-mode-new" class="world-mode-btn world-mode-active" data-localize="world_mode_new" onclick="setWorldMode('new')">New world</button>
+                <button type="button" id="world-mode-existing" class="world-mode-btn" data-localize="world_mode_existing" onclick="setWorldMode('existing')">Add to existing</button>
               </div>
+              <p class="world-target-hint" id="world-target-hint" hidden data-localize="world_mode_hint">Choose a world folder that contains metadata.json (from a previous Arnis run). This is not the Settings save path.</p>
               <div class="existing-world-row" id="existing-world-row" hidden>
                 <input type="text" id="existing-world-path" class="existing-world-input" spellcheck="false" data-localize-placeholder="existing_world_placeholder" placeholder="Select an Arnis Java world folder">
                 <button type="button" id="existing-world-browse" class="existing-world-browse" title="Browse..." aria-label="Browse for world folder">
