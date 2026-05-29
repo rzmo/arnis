@@ -201,31 +201,48 @@
 
         <!-- Ground Level -->
         <div class="settings-row">
-          <label for="ground-level">
+          <label>
             <span data-localize="ground_level">Ground Level</span>
             <span class="tooltip-icon" data-tooltip-key="tooltip_ground_level" data-tooltip="Elevation floor for the map area, not street height. See the calculator below.">?</span>
           </label>
-          <div class="settings-control">
-            <input type="number" id="ground-level" name="ground-level" min="-62" max="290" step="1" value="-62">
+          <div class="settings-control ground-level-mode-control">
+            <button type="button" id="ground-level-mode-manual" class="format-toggle-btn format-active" data-localize="ground_level_mode_manual">Manual</button>
+            <button type="button" id="ground-level-mode-auto" class="format-toggle-btn format-toggle-btn--rightmost" data-localize="ground_level_mode_auto">Auto</button>
           </div>
         </div>
-        <div class="ground-level-helper">
-          <div class="ground-level-helper-inputs">
-            <label for="ground-level-measured">
-              <span data-localize="ground_level_measured">Measured Y</span>
-              <input type="number" id="ground-level-measured" step="1" placeholder="-38">
+        <div id="ground-level-manual" class="ground-level-manual">
+          <div class="settings-row ground-level-input-row">
+            <label for="ground-level">
+              <span data-localize="ground_level_value">Value</span>
             </label>
-            <span class="ground-level-helper-arrow" aria-hidden="true">&rarr;</span>
-            <label for="ground-level-target">
-              <span data-localize="ground_level_target">Target Y</span>
-              <input type="number" id="ground-level-target" step="1" placeholder="64">
-            </label>
-            <span class="tooltip-icon ground-level-helper-tooltip" data-tooltip-key="tooltip_ground_level_helper" data-tooltip="F3 measured and target Y; formula -62 + (target - measured).">?</span>
+            <div class="settings-control">
+              <input type="number" id="ground-level" name="ground-level" min="-62" max="290" step="1" value="-62">
+            </div>
           </div>
-          <div class="ground-level-helper-result" id="ground-level-helper-result" hidden>
-            <span id="ground-level-helper-text"></span>
-            <button type="button" id="ground-level-apply" data-localize="ground_level_apply">Apply</button>
+          <div class="ground-level-helper">
+            <div class="ground-level-helper-inputs">
+              <label for="ground-level-measured">
+                <span data-localize="ground_level_measured">Measured Y</span>
+                <input type="number" id="ground-level-measured" step="1" placeholder="-38">
+              </label>
+              <span class="ground-level-helper-arrow" aria-hidden="true">&rarr;</span>
+              <label for="ground-level-target">
+                <span data-localize="ground_level_target">Target Y</span>
+                <input type="number" id="ground-level-target" step="1" placeholder="64">
+              </label>
+              <span class="tooltip-icon ground-level-helper-tooltip" data-tooltip-key="tooltip_ground_level_helper" data-tooltip="F3 measured and target Y; formula -62 + (target - measured).">?</span>
+            </div>
+            <div class="ground-level-helper-result" id="ground-level-helper-result" hidden>
+              <span id="ground-level-helper-text"></span>
+              <button type="button" id="ground-level-apply" data-localize="ground_level_apply">Apply</button>
+            </div>
           </div>
+        </div>
+        <div id="ground-level-auto" class="ground-level-auto" hidden>
+          <p class="ground-level-auto-hint">
+            <span data-localize="ground_level_auto_hint">Computed from elevation when generation starts so average terrain is near Y 64. Requires a terrain generation mode.</span>
+            <span class="tooltip-icon ground-level-auto-tooltip" data-tooltip-key="tooltip_ground_level_auto" data-tooltip="Auto runs once at generation start.">?</span>
+          </p>
         </div>
 
         <!-- Rotation Angle -->

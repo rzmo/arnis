@@ -107,6 +107,10 @@ async function applyLocalization(localization) {
     "span[data-localize='world_scale']": "world_scale",
     "span[data-localize='custom_bounding_box']": "custom_bounding_box",
     "span[data-localize='ground_level']": "ground_level",
+    "span[data-localize='ground_level_value']": "ground_level_value",
+    "button[id='ground-level-mode-manual']": "ground_level_mode_manual",
+    "button[id='ground-level-mode-auto']": "ground_level_mode_auto",
+    "span[data-localize='ground_level_auto_hint']": "ground_level_auto_hint",
     "span[data-localize='ground_level_measured']": "ground_level_measured",
     "span[data-localize='ground_level_target']": "ground_level_target",
     "button[id='ground-level-apply']": "ground_level_apply",
@@ -504,6 +508,73 @@ function clampGroundLevel(value) {
 
 // Stock Arnis default; helper assumes measured Y is from a world generated at this floor.
 const DEFAULT_GROUND_LEVEL = -62;
+const GROUND_LEVEL_MODE_KEY = "arnis-ground-level-mode";
+
+function isTerrainGenerationMode() {
+  const mode = document.getElementById("generation-mode-select")?.value;
+  return mode === "geo-terrain" || mode === "terrain-only";
+}
+
+function getGroundLevelMode() {
+  if (!isTerrainGenerationMode()) {
+    return "manual";
+  }
+  return localStorage.getItem(GROUND_LEVEL_MODE_KEY) === "auto" ? "auto" : "manual";
+}
+
+function isAutoGroundLevelEnabled() {
+  return getGroundLevelMode() === "auto";
+}
+
+function setGroundLevelMode(mode) {
+  const manualBtn = document.getElementById("ground-level-mode-manual");
+  const autoBtn = document.getElementById("ground-level-mode-auto");
+  const manualPanel = document.getElementById("ground-level-manual");
+  const autoPanel = document.getElementById("ground-level-auto");
+  if (!manualBtn || !autoBtn || !manualPanel || !autoPanel) {
+    return;
+  }
+
+  const terrain = isTerrainGenerationMode();
+  if (!terrain && mode === "auto") {
+    mode = "manual";
+  }
+
+  const isAuto = mode === "auto";
+  manualBtn.classList.toggle("format-active", !isAuto);
+  autoBtn.classList.toggle("format-active", isAuto);
+  autoBtn.disabled = !terrain;
+  manualPanel.hidden = isAuto;
+  autoPanel.hidden = !isAuto;
+
+  if (terrain) {
+    localStorage.setItem(GROUND_LEVEL_MODE_KEY, mode);
+  }
+}
+
+function initGroundLevelMode() {
+  const manualBtn = document.getElementById("ground-level-mode-manual");
+  const autoBtn = document.getElementById("ground-level-mode-auto");
+  const generationModeSelect = document.getElementById("generation-mode-select");
+  if (!manualBtn || !autoBtn) {
+    return;
+  }
+
+  manualBtn.addEventListener("click", () => setGroundLevelMode("manual"));
+  autoBtn.addEventListener("click", () => {
+    if (isTerrainGenerationMode()) {
+      setGroundLevelMode("auto");
+    }
+  });
+
+  if (generationModeSelect) {
+    generationModeSelect.addEventListener("change", () => {
+      setGroundLevelMode(getGroundLevelMode());
+    });
+  }
+
+  setGroundLevelMode(getGroundLevelMode());
+}
 
 function initGroundLevelHelper() {
   const groundInput = document.getElementById("ground-level");
@@ -631,6 +702,7 @@ function initSettings() {
   });
   window.updateRotation = updateRotation;
 
+  initGroundLevelMode();
   initGroundLevelHelper();
 
   // World format toggle (Java/Bedrock/Luanti)
@@ -1548,7 +1620,10 @@ async function startGeneration() {
     var aws_only_elevation = document.getElementById("aws-only-elevation-toggle").checked;
     var bake_lighting = document.getElementById("bake-lighting-toggle").checked;
     var scale = parseFloat(document.getElementById("scale-value-slider").value);
-    var ground_level = clampGroundLevel(parseInt(document.getElementById("ground-level").value, 10));
+    var autoGroundLevel = isAutoGroundLevelEnabled();
+    var ground_level = autoGroundLevel
+      ? DEFAULT_GROUND_LEVEL
+      : clampGroundLevel(parseInt(document.getElementById("ground-level").value, 10));
 
     // Get telemetry consent (defaults to false if not set)
     const telemetryConsent = window.getTelemetryConsent ? window.getTelemetryConsent() : false;
@@ -1562,6 +1637,7 @@ async function startGeneration() {
         selectedWorld: worldPath,
         worldScale: scale,
         groundLevel: ground_level,
+        autoGroundLevel: autoGroundLevel,
         terrainEnabled: terrain,
         skipOsmObjects: skipOsmObjects,
         interiorEnabled: interior,

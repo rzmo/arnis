@@ -56,6 +56,7 @@ impl Ground {
         bbox: &LLBBox,
         scale: f64,
         ground_level: i32,
+        auto_ground_level: bool,
         fetch_land_cover: bool,
         disable_height_limit: bool,
         extended_max_y: i32,
@@ -79,19 +80,27 @@ impl Ground {
         };
 
         // Raise the floor for the deepest water carve (elevation path only).
-        let water_floor = match &land_cover {
+        let min_floor = match &land_cover {
             Some(lc) => {
                 let max_depth =
                     crate::water_depth::estimate_max_carve_depth(&lc.grid, world_w, world_h);
-                ground_level.max(crate::world_editor::MIN_Y + max_depth + 2)
+                crate::world_editor::MIN_Y + max_depth + 2
             }
-            None => ground_level,
+            None => crate::world_editor::MIN_Y,
+        };
+
+        let mut ground_level_for_fetch = if auto_ground_level {
+            ground_level
+        } else {
+            ground_level.max(min_floor)
         };
 
         match fetch_elevation_data(
             bbox,
             scale,
-            water_floor,
+            &mut ground_level_for_fetch,
+            auto_ground_level,
+            min_floor,
             disable_height_limit,
             extended_max_y,
             land_cover.as_mut(),
@@ -99,7 +108,7 @@ impl Ground {
         ) {
             Ok(elevation_data) => Self {
                 elevation_enabled: true,
-                ground_level: water_floor,
+                ground_level: ground_level_for_fetch,
                 elevation_data: Some(elevation_data),
                 land_cover,
                 rotation_mask: None,
@@ -313,6 +322,11 @@ impl Ground {
 
     /// Returns the ground level at the given coordinates
     #[inline(always)]
+    /// Base elevation floor for this world (single global value).
+    pub fn floor_level(&self) -> i32 {
+        self.ground_level
+    }
+
     pub fn level(&self, coord: XZPoint) -> i32 {
         if !self.elevation_enabled || self.elevation_data.is_none() {
             return self.ground_level;
@@ -578,7 +592,7 @@ impl Ground {
     }
 }
 
-pub fn generate_ground_data(args: &Args) -> Ground {
+pub fn generate_ground_data(args: &mut Args) -> Ground {
     if args.terrain {
         println!("{} Fetching elevation...", "[3/7]".bold());
         emit_gui_progress_update(15.0, "Fetching elevation...");
@@ -586,11 +600,13 @@ pub fn generate_ground_data(args: &Args) -> Ground {
             &args.bbox,
             args.scale,
             args.ground_level,
+            args.auto_ground_level,
             args.land_cover,
             args.disable_height_limit,
             extended_max_y_for(args),
             args.aws_only_elevation,
         );
+        args.ground_level = ground.floor_level();
         if args.debug {
             ground.save_debug_image("elevation_debug");
             ground.save_land_cover_debug_image("landcover_debug");

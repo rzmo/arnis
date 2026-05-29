@@ -879,6 +879,7 @@ fn gui_start_generation(
     selected_world: String,
     world_scale: f64,
     ground_level: i32,
+    auto_ground_level: bool,
     terrain_enabled: bool,
     skip_osm_objects: bool,
     interior_enabled: bool,
@@ -1100,7 +1101,7 @@ fn gui_start_generation(
             };
 
             // Create generation options
-            let generation_options = GenerationOptions {
+            let mut generation_options = GenerationOptions {
                 path: generation_path.clone(),
                 format: world_format,
                 level_name,
@@ -1111,7 +1112,7 @@ fn gui_start_generation(
 
             // Create an Args instance with the chosen bounding box
             // Note: path is used for Java-specific features like spawn point update
-            let args: Args = Args {
+            let mut args: Args = Args {
                 bbox,
                 file: None,
                 save_json_file: None,
@@ -1125,6 +1126,7 @@ fn gui_start_generation(
                 downloader: "requests".to_string(),
                 scale: world_scale,
                 ground_level,
+                auto_ground_level: auto_ground_level && terrain_enabled,
                 terrain: terrain_enabled,
                 interior: interior_enabled,
                 roof: roof_enabled,
@@ -1145,7 +1147,8 @@ fn gui_start_generation(
             // If skip_osm_objects is true (terrain-only mode), skip fetching and processing OSM data
             if skip_osm_objects {
                 // Generate ground data (terrain) for terrain-only mode
-                let ground = ground::generate_ground_data(&args);
+                let ground = ground::generate_ground_data(&mut args);
+                generation_options.ground_level = args.ground_level;
 
                 // Create empty parsed_elements and xzbbox for terrain-only mode
                 let parsed_elements = Vec::new();
@@ -1215,7 +1218,8 @@ fn gui_start_generation(
                         }
                     });
 
-                    let mut ground = ground::generate_ground_data(&args);
+                    let mut ground = ground::generate_ground_data(&mut args);
+                    generation_options.ground_level = args.ground_level;
 
                     // OSM water override first, then bridge repair.
                     ground.apply_osm_water_override(&parsed_elements, &xzbbox);

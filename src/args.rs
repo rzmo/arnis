@@ -44,6 +44,10 @@ pub struct Args {
     #[arg(long, default_value_t = -62)]
     pub ground_level: i32,
 
+    /// Compute ground level from elevation so mean terrain maps to Y 64 (requires --terrain)
+    #[arg(long = "auto-ground-level")]
+    pub auto_ground_level: bool,
+
     /// Enable terrain (optional)
     #[arg(long)]
     pub terrain: bool,

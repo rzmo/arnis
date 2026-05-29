@@ -1157,18 +1157,12 @@ pub fn filter_elevation_outliers(height_grid: &mut [Vec<f64>]) {
     }
 }
 
-/// Scale raw elevation (meters) to Minecraft Y coordinates, keeping f64 precision.
-/// `extended_max_y` is the cap when `disable_height_limit` is on (Java datapack:
-/// 2031; Bedrock BP: 512); ignored otherwise.
-pub fn scale_to_minecraft(
-    blurred_heights: &[Vec<f64>],
-    scale: f64,
-    ground_level: i32,
-    disable_height_limit: bool,
-    extended_max_y: i32,
-) -> Vec<Vec<f64>> {
-    // Derive min/max
-    let (min_height, max_height) = blurred_heights
+/// Target mean terrain height when auto ground level is enabled.
+pub const AUTO_GROUND_LEVEL_TARGET_MC_Y: f64 = 64.0;
+
+/// Min/max and height span (meters) over finite elevation grid cells.
+pub fn elevation_grid_bounds(heights: &[Vec<f64>]) -> (f64, f64, f64) {
+    let (min_height, max_height) = heights
         .par_iter()
         .map(|row| {
             let mut lo = f64::MAX;
@@ -1186,12 +1180,131 @@ pub fn scale_to_minecraft(
             |(lo1, hi1), (lo2, hi2)| (lo1.min(lo2), hi1.max(hi2)),
         );
 
-    let (min_height, _max_height, height_range) =
-        if !min_height.is_finite() || !max_height.is_finite() || min_height >= max_height {
-            (0.0_f64, 0.0_f64, 0.0_f64)
-        } else {
-            (min_height, max_height, max_height - min_height)
-        };
+    if !min_height.is_finite() || !max_height.is_finite() || min_height >= max_height {
+        (0.0, 0.0, 0.0)
+    } else {
+        (min_height, max_height, max_height - min_height)
+    }
+}
+
+/// Mean normalized elevation in `[0, 1]` (0 = grid minimum, 1 = grid maximum).
+pub fn elevation_grid_mean_relative(
+    heights: &[Vec<f64>],
+    min_height: f64,
+    height_range: f64,
+) -> f64 {
+    if height_range <= 0.0 {
+        return 0.0;
+    }
+
+    let (sum, count) = heights
+        .par_iter()
+        .map(|row| {
+            let mut row_sum = 0.0;
+            let mut row_count = 0usize;
+            for &h in row {
+                if h.is_finite() {
+                    row_sum += (h - min_height) / height_range;
+                    row_count += 1;
+                }
+            }
+            (row_sum, row_count)
+        })
+        .reduce(
+            || (0.0, 0usize),
+            |(s1, c1), (s2, c2)| (s1 + s2, c1 + c2),
+        );
+
+    if count == 0 {
+        0.0
+    } else {
+        sum / count as f64
+    }
+}
+
+/// Vertical span (blocks) used when mapping meter elevation to Minecraft Y.
+pub fn scaled_range_for_ground_level(
+    height_range: f64,
+    scale: f64,
+    ground_level: i32,
+    disable_height_limit: bool,
+    extended_max_y: i32,
+) -> f64 {
+    if height_range <= 0.0 {
+        return 0.0;
+    }
+
+    let effective_max_y = if disable_height_limit {
+        extended_max_y
+    } else {
+        MAX_Y
+    };
+
+    let ideal_scaled_range = height_range * scale;
+    let available_y_range =
+        (effective_max_y - TERRAIN_HEIGHT_BUFFER - ground_level).max(0) as f64;
+
+    if ideal_scaled_range <= available_y_range {
+        ideal_scaled_range
+    } else if height_range > 0.0 {
+        available_y_range
+    } else {
+        0.0
+    }
+}
+
+/// Pick a single global ground level so mean terrain maps to `target_mc_y`.
+pub fn solve_ground_level_for_mean_mc_y(
+    mean_relative: f64,
+    height_range: f64,
+    scale: f64,
+    target_mc_y: f64,
+    disable_height_limit: bool,
+    extended_max_y: i32,
+    min_floor: i32,
+) -> i32 {
+    if height_range <= 0.0 || !mean_relative.is_finite() {
+        return target_mc_y.round() as i32;
+    }
+
+    let initial_range =
+        scaled_range_for_ground_level(height_range, scale, min_floor, disable_height_limit, extended_max_y);
+    let mut ground_level =
+        (target_mc_y - mean_relative * initial_range).round() as i32;
+
+    for _ in 0..16 {
+        ground_level = ground_level.max(min_floor);
+        let scaled_range = scaled_range_for_ground_level(
+            height_range,
+            scale,
+            ground_level,
+            disable_height_limit,
+            extended_max_y,
+        );
+        let next = (target_mc_y - mean_relative * scaled_range)
+            .round()
+            as i32;
+        let next = next.max(min_floor);
+        if next == ground_level {
+            break;
+        }
+        ground_level = next;
+    }
+
+    ground_level.max(min_floor)
+}
+
+/// Scale raw elevation (meters) to Minecraft Y coordinates, keeping f64 precision.
+/// `extended_max_y` is the cap when `disable_height_limit` is on (Java datapack:
+/// 2031; Bedrock BP: 512); ignored otherwise.
+pub fn scale_to_minecraft(
+    blurred_heights: &[Vec<f64>],
+    scale: f64,
+    ground_level: i32,
+    disable_height_limit: bool,
+    extended_max_y: i32,
+) -> Vec<Vec<f64>> {
+    let (min_height, _max_height, height_range) = elevation_grid_bounds(blurred_heights);
 
     let effective_max_y = if disable_height_limit {
         extended_max_y
@@ -1200,23 +1313,23 @@ pub fn scale_to_minecraft(
     };
     let upper_clamp = (effective_max_y - TERRAIN_HEIGHT_BUFFER) as f64;
 
-    let ideal_scaled_range: f64 = height_range * scale;
-    let available_y_range: f64 = (effective_max_y - TERRAIN_HEIGHT_BUFFER - ground_level) as f64;
+    let ideal_scaled_range = height_range * scale;
+    let available_y_range =
+        (effective_max_y - TERRAIN_HEIGHT_BUFFER - ground_level).max(0) as f64;
 
-    let scaled_range: f64 = if ideal_scaled_range <= available_y_range {
+    let scaled_range = if ideal_scaled_range <= available_y_range {
         eprintln!(
             "Realistic elevation: {:.1}m range fits in {} available blocks",
             height_range, available_y_range as i32
         );
         ideal_scaled_range
     } else {
-        let compression_factor: f64 = available_y_range / height_range;
-        let compressed_range: f64 = height_range * compression_factor;
+        let compressed_range = available_y_range;
         eprintln!(
             "Elevation compressed: {:.1}m range -> {:.0} blocks ({:.2}:1 ratio, 1 block = {:.2}m)",
             height_range,
             compressed_range,
-            height_range / compressed_range,
+            height_range / compressed_range.max(f64::EPSILON),
             compressed_range / height_range
         );
         compressed_range
@@ -1260,5 +1373,76 @@ mod tests {
                 assert!(!h.is_nan(), "NaN values should be filled");
             }
         }
+    }
+
+    #[test]
+    fn flat_elevation_auto_ground_level_is_target() {
+        let grid = vec![vec![100.0, 100.0], vec![100.0, 100.0]];
+        let (_, _, height_range) = elevation_grid_bounds(&grid);
+        let mean_relative = elevation_grid_mean_relative(&grid, 100.0, height_range);
+        let solved = solve_ground_level_for_mean_mc_y(
+            mean_relative,
+            height_range,
+            1.0,
+            AUTO_GROUND_LEVEL_TARGET_MC_Y,
+            false,
+            2031,
+            -62,
+        );
+        assert_eq!(solved, 64);
+    }
+
+    #[test]
+    fn symmetric_hill_mean_terrain_near_target() {
+        let grid = vec![
+            vec![0.0, 50.0, 100.0],
+            vec![50.0, 100.0, 150.0],
+            vec![100.0, 150.0, 200.0],
+        ];
+        let (min_h, _, height_range) = elevation_grid_bounds(&grid);
+        let mean_relative = elevation_grid_mean_relative(&grid, min_h, height_range);
+        let ground_level = solve_ground_level_for_mean_mc_y(
+            mean_relative,
+            height_range,
+            1.0,
+            AUTO_GROUND_LEVEL_TARGET_MC_Y,
+            false,
+            2031,
+            -62,
+        );
+        let mc = scale_to_minecraft(&grid, 1.0, ground_level, false, 2031);
+        let mut sum = 0.0;
+        let mut count = 0usize;
+        for row in &mc {
+            for &y in row {
+                if y.is_finite() {
+                    sum += y;
+                    count += 1;
+                }
+            }
+        }
+        let mean_mc = sum / count as f64;
+        assert!(
+            (mean_mc - AUTO_GROUND_LEVEL_TARGET_MC_Y).abs() < 1.0,
+            "mean {mean_mc} expected ~64"
+        );
+    }
+
+    #[test]
+    fn water_floor_clamp_raises_auto_ground_level() {
+        let grid = vec![vec![0.0, 100.0], vec![100.0, 200.0]];
+        let (min_h, _, height_range) = elevation_grid_bounds(&grid);
+        let mean_relative = elevation_grid_mean_relative(&grid, min_h, height_range);
+        let min_floor = 50;
+        let solved = solve_ground_level_for_mean_mc_y(
+            mean_relative,
+            height_range,
+            1.0,
+            AUTO_GROUND_LEVEL_TARGET_MC_Y,
+            false,
+            2031,
+            min_floor,
+        );
+        assert!(solved >= min_floor);
     }
 }

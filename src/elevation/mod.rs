@@ -10,8 +10,9 @@ use crate::{
     progress::emit_gui_progress_update,
 };
 use postprocess::{
-    apply_land_cover_repair, fill_nan_values, filter_elevation_outliers, repair_terrain_anomalies,
-    scale_to_minecraft,
+    apply_land_cover_repair, elevation_grid_bounds, elevation_grid_mean_relative,
+    fill_nan_values, filter_elevation_outliers, repair_terrain_anomalies,
+    scale_to_minecraft, solve_ground_level_for_mean_mc_y, AUTO_GROUND_LEVEL_TARGET_MC_Y,
 };
 use provider::ElevationProvider;
 use selector::select_provider;
@@ -101,10 +102,15 @@ pub fn compute_grid_dims(bbox: &LLBBox, scale: f64) -> (usize, usize, usize, usi
 /// and coastal tile-boundary artifacts.
 ///
 /// The returned ElevationData contains heights in Minecraft Y coordinates.
+///
+/// `ground_level` is read for manual mode and updated to the value used for scaling
+/// (including auto-calibration when `auto_ground_level` is true).
 pub fn fetch_elevation_data(
     bbox: &LLBBox,
     scale: f64,
-    ground_level: i32,
+    ground_level: &mut i32,
+    auto_ground_level: bool,
+    min_floor: i32,
     disable_height_limit: bool,
     extended_max_y: i32,
     land_cover: Option<&mut LandCoverData>,
@@ -219,10 +225,42 @@ pub fn fetch_elevation_data(
         );
     }
 
+    if auto_ground_level {
+        let (min_height, _, height_range) = elevation_grid_bounds(&height_grid);
+        let mean_relative = elevation_grid_mean_relative(&height_grid, min_height, height_range);
+        let solved = solve_ground_level_for_mean_mc_y(
+            mean_relative,
+            height_range,
+            scale,
+            AUTO_GROUND_LEVEL_TARGET_MC_Y,
+            disable_height_limit,
+            extended_max_y,
+            min_floor,
+        );
+        *ground_level = solved;
+        let msg = if solved > min_floor {
+            format!(
+                "Auto ground level: {solved} (mean terrain → Y {:.0}; raised for water carving)",
+                AUTO_GROUND_LEVEL_TARGET_MC_Y
+            )
+        } else {
+            format!(
+                "Auto ground level: {solved} (mean terrain → Y {:.0})",
+                AUTO_GROUND_LEVEL_TARGET_MC_Y
+            )
+        };
+        println!("{msg}");
+        emit_gui_progress_update(18.0, &msg);
+        #[cfg(feature = "gui")]
+        crate::telemetry::send_log(crate::telemetry::LogLevel::Info, &msg);
+    } else {
+        *ground_level = (*ground_level).max(min_floor);
+    }
+
     let mc_heights = scale_to_minecraft(
         &height_grid,
         scale,
-        ground_level,
+        *ground_level,
         disable_height_limit,
         extended_max_y,
     );

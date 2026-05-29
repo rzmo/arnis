@@ -94,7 +94,7 @@ fn run_cli() {
     version_check::check_for_updates_async();
 
     // Parse input arguments
-    let args: Args = Args::parse();
+    let mut args: Args = Args::parse();
 
     // Validate arguments (path requirements differ between Java and Bedrock)
     if let Err(e) = args::validate_args(&args) {
@@ -183,7 +183,7 @@ fn run_cli() {
     }
     .expect("Failed to fetch data");
 
-    let mut ground = ground::generate_ground_data(&args);
+    let mut ground = ground::generate_ground_data(&mut args);
 
     // Parse raw data
     let (mut parsed_elements, mut xzbbox, outline_suppression) =
