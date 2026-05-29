@@ -216,6 +216,61 @@ fn detect_minecraft_saves_directory() -> PathBuf {
     env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
+fn pick_folder_blocking(dialog_start: &Path, title: &str) -> Option<PathBuf> {
+    let mut dialog = FileDialog::new().set_title(title);
+    if dialog_start.is_dir() {
+        dialog = dialog.set_directory(dialog_start);
+    }
+    dialog.pick_folder()
+}
+
+/// Native folder picker. Async so the webview event loop is not deadlocked while waiting.
+/// macOS: `rfd` must run on the main thread; Windows/Linux: run on a background thread.
+async fn pick_folder_dialog(
+    app: tauri::AppHandle,
+    start_path: String,
+    title: &'static str,
+    default_if_missing: Option<PathBuf>,
+) -> Result<String, String> {
+    let fallback = start_path.trim().to_string();
+    let mut dialog_start = PathBuf::from(&fallback);
+    if !dialog_start.is_dir() {
+        if let Some(def) = default_if_missing {
+            dialog_start = def;
+        }
+    }
+
+    let title_string = title.to_string();
+    let dialog_start_for_task = dialog_start.clone();
+
+    let picked = {
+        #[cfg(target_os = "macos")]
+        {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            app.run_on_main_thread(move || {
+                let result = pick_folder_blocking(&dialog_start_for_task, &title_string);
+                let _ = tx.send(result);
+            })
+            .map_err(|e| format!("Failed to schedule folder picker: {e}"))?;
+            rx.await
+                .map_err(|_| "Folder picker was interrupted".to_string())?
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            tokio::task::spawn_blocking(move || {
+                pick_folder_blocking(&dialog_start_for_task, &title_string)
+            })
+            .await
+            .map_err(|e| format!("Folder picker task failed: {e}"))?
+        }
+    };
+
+    match picked {
+        Some(folder) => Ok(folder.display().to_string()),
+        None => Ok(fallback),
+    }
+}
+
 /// Returns the default save path (auto-detected on first run).
 /// The frontend stores/retrieves this via localStorage and passes it here for validation.
 #[tauri::command]
@@ -250,16 +305,11 @@ fn gui_set_cache_path(path: String) -> Result<String, String> {
 
 /// Opens a native folder-picker dialog for the tile cache directory.
 #[tauri::command]
-fn gui_pick_cache_directory(start_path: String) -> Result<String, String> {
-    let start = PathBuf::from(&start_path);
-    let mut dialog = FileDialog::new();
-    if start.is_dir() {
-        dialog = dialog.set_directory(&start);
-    }
-    match dialog.pick_folder() {
-        Some(folder) => Ok(folder.display().to_string()),
-        None => Ok(start_path),
-    }
+async fn gui_pick_cache_directory(
+    app: tauri::AppHandle,
+    start_path: String,
+) -> Result<String, String> {
+    pick_folder_dialog(app, start_path, "Select tile cache folder", None).await
 }
 
 #[derive(serde::Serialize)]
@@ -304,16 +354,11 @@ fn gui_set_save_path(path: String) -> Result<String, String> {
 
 /// Opens a native folder-picker dialog and returns the chosen path.
 #[tauri::command]
-fn gui_pick_save_directory(start_path: String) -> Result<String, String> {
-    let start = PathBuf::from(&start_path);
-    let mut dialog = FileDialog::new();
-    if start.is_dir() {
-        dialog = dialog.set_directory(&start);
-    }
-    match dialog.pick_folder() {
-        Some(folder) => Ok(folder.display().to_string()),
-        None => Ok(start_path),
-    }
+async fn gui_pick_save_directory(
+    app: tauri::AppHandle,
+    start_path: String,
+) -> Result<String, String> {
+    pick_folder_dialog(app, start_path, "Select Minecraft saves folder", None).await
 }
 
 /// Creates a new Java Edition world in the given base save directory.
@@ -344,23 +389,17 @@ fn gui_read_world_settings(world_path: String) -> Result<serde_json::Value, Stri
 
 /// Pick an existing world folder (must contain `metadata.json`).
 #[tauri::command]
-fn gui_pick_world_directory(start_path: String) -> Result<String, String> {
-    let trimmed = start_path.trim();
-    let start = PathBuf::from(trimmed);
-    let start = if start.exists() {
-        start
-    } else {
-        detect_minecraft_saves_directory()
-    };
-
-    let mut dialog = rfd::FileDialog::new().set_title("Select Arnis world folder");
-    if start.is_dir() {
-        dialog = dialog.set_directory(&start);
-    }
-    match dialog.pick_folder() {
-        Some(folder) => Ok(folder.display().to_string()),
-        None => Ok(trimmed.to_string()),
-    }
+async fn gui_pick_world_directory(
+    app: tauri::AppHandle,
+    start_path: String,
+) -> Result<String, String> {
+    pick_folder_dialog(
+        app,
+        start_path,
+        "Select Arnis world folder",
+        Some(detect_minecraft_saves_directory()),
+    )
+    .await
 }
 
 /// Adds localized area name to the world name in level.dat

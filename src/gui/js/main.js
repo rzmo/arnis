@@ -1536,6 +1536,27 @@ function normalizeWorldMode(stored) {
   return stored === "existing" ? "existing" : "new";
 }
 
+/** Path typed in the UI or stored from a prior pick/Enter (not only localStorage at load). */
+function resolveExistingWorldPathFromUI() {
+  const pathInput = document.getElementById("existing-world-path");
+  const typed = pathInput?.value?.trim() || "";
+  if (typed) {
+    existingWorldPath = typed;
+    localStorage.setItem("arnis-existing-world-path", typed);
+    return typed;
+  }
+  if (existingWorldPath?.trim()) {
+    return existingWorldPath.trim();
+  }
+  if (worldPath?.trim()) {
+    existingWorldPath = worldPath.trim();
+    if (pathInput) pathInput.value = existingWorldPath;
+    localStorage.setItem("arnis-existing-world-path", existingWorldPath);
+    return existingWorldPath;
+  }
+  return "";
+}
+
 function updateWorldModeVisibility() {
   const panel = document.getElementById("world-target-panel");
   const existingRow = document.getElementById("existing-world-row");
@@ -1595,9 +1616,9 @@ function setWorldMode(mode) {
   }
 
   lockRotationForAppend(true);
-  if (existingWorldPath && pathInput) {
-    pathInput.value = existingWorldPath;
-    loadExistingWorldMetadata(existingWorldPath).catch(() => {});
+  const path = resolveExistingWorldPathFromUI();
+  if (path) {
+    loadExistingWorldMetadata(path).catch(() => {});
   }
 
   if (existingRowVisible()) {
@@ -1696,11 +1717,31 @@ async function loadExistingWorldMetadata(path) {
   }
 }
 
-function initWorldMode() {
-  const pathInput = document.getElementById("existing-world-path");
-  const browseBtn = document.getElementById("existing-world-browse");
+let pickExistingWorldInFlight = false;
 
-  const pickExistingWorld = async () => {
+async function pickExistingWorldFolder(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (pickExistingWorldInFlight) {
+    return;
+  }
+  if (!window.__TAURI__?.core?.invoke) {
+    const warnEl = document.getElementById("append-settings-warning");
+    if (warnEl) {
+      warnEl.textContent = "Folder picker is only available in the Arnis desktop app.";
+      warnEl.hidden = false;
+    }
+    return;
+  }
+  if (selectedWorldFormat !== "java" || worldMode !== "existing") {
+    setWorldMode("existing");
+  }
+  const pathInput = document.getElementById("existing-world-path");
+  const warnEl = document.getElementById("append-settings-warning");
+  pickExistingWorldInFlight = true;
+  try {
     const start = (pathInput?.value?.trim() || existingWorldPath || savePath || "").trim();
     const picked = await invoke("gui_pick_world_directory", { startPath: start });
     if (!picked || !String(picked).trim()) {
@@ -1710,32 +1751,38 @@ function initWorldMode() {
     localStorage.setItem("arnis-existing-world-path", existingWorldPath);
     if (pathInput) pathInput.value = existingWorldPath;
     await loadExistingWorldMetadata(existingWorldPath);
-  };
+  } catch (err) {
+    console.error("Failed to pick world folder:", err);
+    if (warnEl) {
+      warnEl.textContent = String(err);
+      warnEl.hidden = false;
+    }
+  } finally {
+    pickExistingWorldInFlight = false;
+  }
+}
 
-  browseBtn?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    pickExistingWorld().catch((err) => {
-      console.error("Failed to pick world folder:", err);
-      const warnEl = document.getElementById("append-settings-warning");
-      if (warnEl) {
-        warnEl.textContent = String(err);
-        warnEl.hidden = false;
-      }
-    });
-  });
+window.pickExistingWorldFolder = pickExistingWorldFolder;
+
+function initWorldMode() {
+  const pathInput = document.getElementById("existing-world-path");
+
+  const commitPathFromInput = () => {
+    const trimmed = pathInput?.value?.trim() || "";
+    if (!trimmed) return;
+    existingWorldPath = trimmed;
+    localStorage.setItem("arnis-existing-world-path", trimmed);
+    loadExistingWorldMetadata(trimmed).catch(() => {});
+  };
 
   pathInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const trimmed = pathInput.value.trim();
-      if (trimmed) {
-        existingWorldPath = trimmed;
-        localStorage.setItem("arnis-existing-world-path", trimmed);
-        loadExistingWorldMetadata(trimmed).catch(() => {});
-      }
+      commitPathFromInput();
     }
   });
+  pathInput?.addEventListener("change", commitPathFromInput);
+  pathInput?.addEventListener("blur", commitPathFromInput);
 
   setWorldMode(worldMode);
   if (existingWorldPath && pathInput) {
@@ -1818,20 +1865,22 @@ async function startGeneration() {
         return;
       }
     } else if (selectedWorldFormat === "java" && worldMode === "existing") {
-      if (!existingWorldPath) {
+      const appendPath = resolveExistingWorldPathFromUI();
+      if (!appendPath) {
         const warnEl = document.getElementById("append-settings-warning");
         if (warnEl) {
-          warnEl.textContent = "Select an existing Arnis Java world folder first.";
+          warnEl.textContent =
+            "Enter the world folder path (the folder that contains metadata.json), then try again.";
           warnEl.hidden = false;
         }
         return;
       }
       try {
-        await loadExistingWorldMetadata(existingWorldPath);
+        await loadExistingWorldMetadata(appendPath);
       } catch {
         return;
       }
-      worldPath = existingWorldPath;
+      worldPath = appendPath;
       setWorldNameLabel(basenameFromPath(worldPath));
     }
 
