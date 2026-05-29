@@ -264,7 +264,7 @@ button:hover {
   color: #b3b3b3;
 }
 
-.controls-box button {
+.controls-box .button-block button {
   width: 100%;
 }
 
@@ -1164,6 +1164,20 @@ button:hover {
   min-height: 22px;
 }
 
+.world-target-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.world-target-panel[hidden] {
+  display: none !important;
+}
+
 .world-mode-row {
   display: flex;
   width: 100%;
@@ -1171,6 +1185,7 @@ button:hover {
 
 .world-mode-btn {
   flex: 1;
+  width: auto;
   margin-top: 0;
   border-radius: 0;
   background-color: var(--surface-2);
@@ -1178,6 +1193,7 @@ button:hover {
   font-size: 0.85em;
   padding: 0.55em 0.5em;
   box-shadow: none;
+  cursor: pointer;
 }
 
 .world-mode-btn.world-mode-active {
@@ -1189,15 +1205,52 @@ button:hover {
 .existing-world-row {
   display: flex;
   align-items: stretch;
-  gap: 6px;
+  gap: 0;
   width: 100%;
-  padding: 6px 8px 8px;
+  padding: 0;
   box-sizing: border-box;
+  background-color: var(--surface-2);
+}
+
+.existing-world-row[hidden] {
+  display: none !important;
 }
 
 .existing-world-input {
   flex: 1;
   min-width: 0;
+  margin: 0;
+  border-radius: 0 0 0 8px;
+}
+
+.existing-world-browse {
+  flex: 0 0 auto;
+  width: 44px !important;
+  min-width: 44px;
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0 0 8px 0;
+  background: var(--surface-3);
+  box-shadow: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.existing-world-browse:hover {
+  background: var(--surface-2);
+}
+
+.existing-world-browse svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--primary-accent);
+}
+
+.append-settings-warning[hidden] {
+  display: none !important;
 }
 
 .append-settings-warning {
