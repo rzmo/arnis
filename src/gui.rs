@@ -151,6 +151,8 @@ pub fn run_gui() {
             gui_set_cache_path,
             gui_pick_cache_directory,
             gui_start_generation,
+            gui_read_world_settings,
+            gui_pick_world_directory,
             gui_get_version,
             gui_get_update_info,
             gui_get_platform,
@@ -331,6 +333,34 @@ fn gui_create_world(save_path: String) -> Result<String, i32> {
 
 fn create_new_world(base_path: &Path) -> Result<String, String> {
     crate::world_utils::create_new_world(base_path)
+}
+
+/// Returns `metadata.json` contents for an existing Arnis Java world.
+#[tauri::command]
+fn gui_read_world_settings(world_path: String) -> Result<serde_json::Value, String> {
+    let meta = crate::world_metadata::read_world_metadata(Path::new(&world_path.trim()))?;
+    serde_json::to_value(&meta).map_err(|e| format!("Failed to serialize metadata: {e}"))
+}
+
+/// Pick an existing world folder (must contain `metadata.json`).
+#[tauri::command]
+fn gui_pick_world_directory(start_path: String) -> Result<String, String> {
+    let trimmed = start_path.trim();
+    let start = PathBuf::from(trimmed);
+    let start = if start.exists() {
+        start
+    } else {
+        detect_minecraft_saves_directory()
+    };
+
+    let mut dialog = rfd::FileDialog::new().set_title("Select Arnis world folder");
+    if start.is_dir() {
+        dialog = dialog.set_directory(&start);
+    }
+    match dialog.pick_folder() {
+        Some(folder) => Ok(folder.display().to_string()),
+        None => Ok(trimmed.to_string()),
+    }
 }
 
 /// Adds localized area name to the world name in level.dat
@@ -1100,16 +1130,6 @@ fn gui_start_generation(
                 None
             };
 
-            // Create generation options
-            let mut generation_options = GenerationOptions {
-                path: generation_path.clone(),
-                format: world_format,
-                level_name,
-                spawn_point: mc_spawn_point,
-                luanti_game,
-                ground_level,
-            };
-
             // Create an Args instance with the chosen bounding box
             // Note: path is used for Java-specific features like spawn point update
             let mut args: Args = Args {
@@ -1121,6 +1141,7 @@ fn gui_start_generation(
                 } else {
                     world_path
                 }),
+                append_to_world: None,
                 bedrock: world_format == WorldFormat::BedrockMcWorld,
                 luanti: world_format == WorldFormat::LuantiWorld,
                 downloader: "requests".to_string(),
@@ -1144,6 +1165,37 @@ fn gui_start_generation(
                 bake_lighting: bake_lighting_enabled,
             };
 
+            let append_mode = !is_new_world && world_format == WorldFormat::JavaAnvil;
+            let (anchor_lat, anchor_lng) = if append_mode {
+                let meta = crate::world_metadata::read_world_metadata(&generation_path)?;
+                crate::world_metadata::validate_append_hard(&meta, args.scale, args.rotation)?;
+                if let Some(ref stored) = meta.settings {
+                    let requested = crate::world_metadata::WorldGenerationSettings::from_args(&args);
+                    for warning in
+                        crate::world_metadata::append_setting_warnings(stored, &requested)
+                    {
+                        eprintln!("Warning: {warning}");
+                        #[cfg(feature = "gui")]
+                        crate::telemetry::send_log(crate::telemetry::LogLevel::Warning, &warning);
+                    }
+                }
+                (meta.anchor_lat, meta.anchor_lng)
+            } else {
+                (args.bbox.max().lat(), args.bbox.min().lng())
+            };
+
+            let mut generation_options = GenerationOptions {
+                path: generation_path.clone(),
+                format: world_format,
+                level_name,
+                spawn_point: mc_spawn_point,
+                luanti_game,
+                ground_level,
+                append: append_mode,
+                anchor_lat,
+                anchor_lng,
+            };
+
             // If skip_osm_objects is true (terrain-only mode), skip fetching and processing OSM data
             if skip_osm_objects {
                 // Generate ground data (terrain) for terrain-only mode
@@ -1153,8 +1205,13 @@ fn gui_start_generation(
                 // Create empty parsed_elements and xzbbox for terrain-only mode
                 let parsed_elements = Vec::new();
                 let (_coord_transformer, xzbbox) =
-                    CoordTransformer::llbbox_to_xzbbox(&args.bbox, args.scale)
-                        .map_err(|e| format!("Failed to create coordinate transformer: {}", e))?;
+                    CoordTransformer::llbbox_to_xzbbox_anchored(
+                        &args.bbox,
+                        args.scale,
+                        anchor_lat,
+                        anchor_lng,
+                    )
+                    .map_err(|e| format!("Failed to create coordinate transformer: {}", e))?;
 
                 let _ = data_processing::generate_world_with_options(
                     parsed_elements,
@@ -1171,7 +1228,11 @@ fn gui_start_generation(
                 // Explicitly release session lock before showing Done message
                 // so Minecraft can open the world immediately
                 drop(_session_lock);
-                emit_gui_progress_update(100.0, "Done! World generation completed.");
+                progress::emit_gui_progress_update_detail(
+                    100.0,
+                    "Done! World generation completed.",
+                    "",
+                );
                 println!("{}", "Done! World generation completed.".green().bold());
 
                 // Start map preview generation silently in background (Java only)
@@ -1190,7 +1251,14 @@ fn gui_start_generation(
             match retrieve_data::fetch_data_from_overpass(args.bbox, args.debug, "requests", None) {
                 Ok(raw_data) => {
                     let (mut parsed_elements, mut xzbbox, outline_suppression) =
-                        osm_parser::parse_osm_data(raw_data, args.bbox, args.scale, args.debug);
+                        osm_parser::parse_osm_data_anchored(
+                            raw_data,
+                            args.bbox,
+                            args.scale,
+                            anchor_lat,
+                            anchor_lng,
+                            args.debug,
+                        );
 
                     // Fetch supplementary building data from Overture Maps
                     {
@@ -1258,7 +1326,11 @@ fn gui_start_generation(
                     // Explicitly release session lock before showing Done message
                     // so Minecraft can open the world immediately
                     drop(_session_lock);
-                    emit_gui_progress_update(100.0, "Done! World generation completed.");
+                    progress::emit_gui_progress_update_detail(
+                        100.0,
+                        "Done! World generation completed.",
+                        "",
+                    );
                     println!("{}", "Done! World generation completed.".green().bold());
 
                     // Start map preview generation silently in background (Java only)

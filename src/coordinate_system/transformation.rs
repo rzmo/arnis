@@ -1,4 +1,4 @@
-use super::cartesian::{XZBBox, XZPoint};
+use super::cartesian::{XZBBox, XZPoint, XZVector};
 use super::geographic::{LLBBox, LLPoint};
 
 /// Transform geographic space (within llbbox) to a local tangential cartesian space (within xzbbox)
@@ -24,6 +24,24 @@ impl CoordTransformer {
         llbbox: &LLBBox,
         scale: f64,
     ) -> Result<(CoordTransformer, XZBBox), String> {
+        Self::llbbox_to_xzbbox_anchored(
+            llbbox,
+            scale,
+            llbbox.max().lat(),
+            llbbox.min().lng(),
+        )
+    }
+
+    /// Map a bbox into world Minecraft coordinates using a shared geographic anchor.
+    ///
+    /// The anchor `(anchor_lat, anchor_lng)` is the geo point at world `(0, 0)` — for a
+    /// fresh world this is the NW corner of the first bbox (`max_lat`, `min_lng`).
+    pub fn llbbox_to_xzbbox_anchored(
+        llbbox: &LLBBox,
+        scale: f64,
+        anchor_lat: f64,
+        anchor_lng: f64,
+    ) -> Result<(CoordTransformer, XZBBox), String> {
         let err_header = "Construct LLBBox to XZBBox transformation failed".to_string();
 
         if scale <= 0.0 {
@@ -34,8 +52,19 @@ impl CoordTransformer {
         let scale_factor_z: f64 = scale_factor_z.floor() * scale;
         let scale_factor_x: f64 = scale_factor_x.floor() * scale;
 
-        let xzbbox = XZBBox::rect_from_xz_lengths(scale_factor_x, scale_factor_z)
+        let mut xzbbox = XZBBox::rect_from_xz_lengths(scale_factor_x, scale_factor_z)
             .map_err(|e| format!("{}:\n{}", &err_header, e))?;
+
+        let avg_lat = (llbbox.min().lat() + llbbox.max().lat()) * 0.5;
+        let offset_x =
+            (lon_distance(avg_lat, anchor_lng, llbbox.min().lng()).floor() * scale) as i32;
+        let offset_z =
+            (lat_distance(llbbox.max().lat(), anchor_lat).floor() * scale) as i32;
+
+        xzbbox = xzbbox + XZVector {
+            dx: offset_x,
+            dz: offset_z,
+        };
 
         Ok((
             Self {
@@ -169,6 +198,34 @@ mod test {
         test_llxztransform_one_scale_one_factor(10.0, -1.2, 2.0);
         test_llxztransform_one_scale_one_factor(0.4, 0.3, -0.2);
         test_llxztransform_one_scale_one_factor(0.1, 0.2, 0.7);
+    }
+
+    #[test]
+    fn anchored_bbox_offset_matches_geo_distance() {
+        let llbbox = get_llbbox_arnis();
+        let anchor_lat = llbbox.max().lat();
+        let anchor_lng = llbbox.min().lng();
+        let (_, unanchored) = CoordTransformer::llbbox_to_xzbbox(&llbbox, 1.0).unwrap();
+        let (_, anchored) =
+            CoordTransformer::llbbox_to_xzbbox_anchored(&llbbox, 1.0, anchor_lat, anchor_lng)
+                .unwrap();
+        assert_eq!(unanchored.min_x(), anchored.min_x());
+        assert_eq!(unanchored.min_z(), anchored.min_z());
+
+        let shift = 0.01;
+        let new_min_lng = llbbox.min().lng() + shift;
+        let new_max_lng = llbbox.max().lng() + shift;
+        let east = LLBBox::new(
+            llbbox.min().lat(),
+            new_min_lng,
+            llbbox.max().lat(),
+            new_max_lng,
+        )
+        .unwrap();
+        let (_, east_box) =
+            CoordTransformer::llbbox_to_xzbbox_anchored(&east, 1.0, anchor_lat, anchor_lng)
+                .unwrap();
+        assert!(east_box.min_x() > anchored.min_x());
     }
 
     // this ensures that invalid inputs can be handled correctly

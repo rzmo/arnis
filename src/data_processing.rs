@@ -7,7 +7,11 @@ use crate::ground::Ground;
 use crate::ground_generation;
 use crate::map_renderer;
 use crate::osm_parser::{OutlineSuppression, ProcessedElement};
-use crate::progress::{emit_gui_progress_update, emit_map_preview_ready, emit_show_in_folder};
+use crate::progress::{
+    emit_gui_progress_update, emit_gui_progress_update_detail, emit_map_preview_ready,
+    emit_show_in_folder,
+};
+use crate::world_metadata::{validate_append_hard, WorldGenerationSettings};
 #[cfg(feature = "gui")]
 use crate::telemetry::{send_log, LogLevel};
 use crate::world_editor::{WorldEditor, WorldFormat};
@@ -26,6 +30,10 @@ pub struct GenerationOptions {
     pub spawn_point: Option<(i32, i32)>,
     pub luanti_game: Option<crate::luanti_block_map::LuantiGame>,
     pub ground_level: i32,
+    /// Merge into an existing Java world directory.
+    pub append: bool,
+    pub anchor_lat: f64,
+    pub anchor_lng: f64,
 }
 
 /// Generate world with explicit format options (used by GUI for Bedrock support)
@@ -42,10 +50,15 @@ pub fn generate_world_with_options(
     let world_format = options.format;
     let generation_start = args.benchmark.then(std::time::Instant::now);
 
+    if options.append {
+        let meta = crate::world_metadata::read_world_metadata(&options.path)?;
+        validate_append_hard(&meta, args.scale, args.rotation)?;
+    }
+
     // Create editor with appropriate format
     let mut editor: WorldEditor = if options.format == WorldFormat::LuantiWorld {
         WorldEditor::new_luanti(
-            options.path,
+            options.path.clone(),
             &xzbbox,
             llbbox,
             options
@@ -57,7 +70,7 @@ pub fn generate_world_with_options(
         )
     } else {
         WorldEditor::new_with_format_and_name(
-            options.path,
+            options.path.clone(),
             &xzbbox,
             llbbox,
             options.format,
@@ -67,12 +80,18 @@ pub fn generate_world_with_options(
         )
     };
     editor.set_bake_lighting(args.bake_lighting);
+    editor.set_append_mode(options.append);
+    editor.set_generation_metadata(
+        args.scale,
+        WorldGenerationSettings::from_args(args),
+    );
     let ground = Arc::new(ground);
 
     // Per-cell water depth field from the LC_WATER mask; empty without land cover.
     let big_water_field = crate::water_depth::compute_big_water_field(&ground, &xzbbox);
 
     println!("{} Processing data...", "[4/7]".bold());
+    emit_gui_progress_update_detail(20.0, "Processing data...", "");
 
     // Build highway connectivity map once before processing
     let highway_connectivity = highways::build_highway_connectivity_map(&elements);
@@ -84,7 +103,7 @@ pub fn generate_world_with_options(
     editor.set_ground(Arc::clone(&ground));
 
     println!("{} Processing terrain...", "[5/7]".bold());
-    emit_gui_progress_update(25.0, "Processing terrain...");
+    emit_gui_progress_update_detail(25.0, "Processing terrain...", "");
 
     // Pre-compute all flood fills in parallel for better CPU utilization
     let mut flood_fill_cache = FloodFillCache::precompute(&elements, args.timeout.as_ref());
@@ -175,7 +194,12 @@ pub fn generate_world_with_options(
         }
         current_progress_prcs += progress_increment_prcs;
         if (current_progress_prcs - last_emitted_progress).abs() > 0.25 {
-            emit_gui_progress_update(current_progress_prcs, "");
+            let detail = format!("{element_counter} / {elements_count} elements");
+            emit_gui_progress_update_detail(
+                current_progress_prcs,
+                "Processing elements...",
+                &detail,
+            );
             last_emitted_progress = current_progress_prcs;
         }
 
@@ -460,11 +484,11 @@ pub fn generate_world_with_options(
         eprintln!("[BENCHMARK] generation_time_ms={gen_ms}");
     }
 
-    emit_gui_progress_update(99.0, "Finalizing world...");
+    emit_gui_progress_update_detail(99.0, "Finalizing world...", "");
 
-    // Update player spawn Y coordinate based on terrain height after generation
+    // Update player spawn Y coordinate based on terrain height after generation (new worlds only)
     #[cfg(feature = "gui")]
-    if world_format == WorldFormat::JavaAnvil {
+    if world_format == WorldFormat::JavaAnvil && !options.append {
         use crate::gui::update_player_spawn_y_after_generation;
         // Reconstruct bbox string to match the format that GUI originally provided.
         // This ensures LLBBox::from_str() can parse it correctly.

@@ -33,10 +33,15 @@ pub fn is_running_with_gui() -> bool {
 ///
 /// The function `emit_gui_progress_update` is used to send real-time progress updates to the UI.
 pub fn emit_gui_progress_update(progress: f64, message: &str) {
+    emit_gui_progress_update_detail(progress, message, "");
+}
+
+pub fn emit_gui_progress_update_detail(progress: f64, message: &str, detail: &str) {
     if let Some(window) = get_main_window() {
         let payload = json!({
             "progress": progress,
-            "message": message
+            "message": message,
+            "detail": detail
         });
 
         if let Err(e) = window.emit("progress-update", payload) {
@@ -55,7 +60,7 @@ pub fn emit_gui_error(message: &str) {
     // where byte 35 lands inside a Cyrillic character.
     const MAX_CHARS: usize = 35;
     let truncated: String = message.chars().take(MAX_CHARS).collect();
-    emit_gui_progress_update(0.0, &format!("Error! {truncated}"));
+    emit_gui_progress_update_detail(0.0, &format!("Error! {truncated}"), "");
 }
 
 /// Emits the final in-game level name (including localized area suffix for Java,

@@ -47,6 +47,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   await applyLocalization(localization);
   initTooltips();
   updateFormatToggleUI(selectedWorldFormat);
+  initWorldMode();
   initFooter();
   initEasterEggs();
   checkForUpdates();
@@ -417,12 +418,18 @@ function setupProgressListener() {
   const progressInfo = document.getElementById("progress-info");
   const progressDetail = document.getElementById("progress-detail");
 
+  const progressSubdetail = document.getElementById("progress-subdetail");
+
   window.__TAURI__.event.listen("progress-update", (event) => {
-    const { progress, message } = event.payload;
+    const { progress, message, detail } = event.payload;
 
     if (progress != -1) {
       progressBar.style.width = `${progress}%`;
       progressDetail.textContent = `${Math.round(progress)}%`;
+    }
+
+    if (progressSubdetail) {
+      progressSubdetail.textContent = detail && detail.length > 0 ? detail : "";
     }
 
     if (message != "") {
@@ -933,6 +940,7 @@ function updateFormatToggleUI(format) {
     if (luantiBtn) luantiBtn.classList.add('format-active');
     worldPath = "";
   }
+  updateWorldModeVisibility();
 }
 
 // Expose to window for onclick handlers
@@ -1516,6 +1524,153 @@ function displayBboxInfoText(bboxText) {
 }
 
 let worldPath = "";
+let worldMode = localStorage.getItem("arnis-world-mode") || "new";
+let existingWorldPath = localStorage.getItem("arnis-existing-world-path") || "";
+let scaleLockedForAppend = false;
+
+function updateWorldModeVisibility() {
+  const modeRow = document.getElementById("world-mode-row");
+  const existingRow = document.getElementById("existing-world-row");
+  if (!modeRow || !existingRow) return;
+  const showJava = selectedWorldFormat === "java";
+  modeRow.style.display = showJava ? "" : "none";
+  existingRow.hidden = !showJava || worldMode !== "existing";
+}
+
+function lockScaleFromMetadata(scale) {
+  const slider = document.getElementById("scale-value-slider");
+  const sliderValue = document.getElementById("slider-value");
+  if (!slider) return;
+  slider.value = String(scale);
+  if (sliderValue) sliderValue.textContent = String(scale);
+  slider.disabled = true;
+  scaleLockedForAppend = true;
+}
+
+function unlockScale() {
+  const slider = document.getElementById("scale-value-slider");
+  if (!slider || !scaleLockedForAppend) return;
+  slider.disabled = false;
+  scaleLockedForAppend = false;
+}
+
+function lockRotationForAppend(lock) {
+  const rotationInput = document.getElementById("rotation-angle-input");
+  if (!rotationInput) return;
+  if (lock) {
+    rotationInput.value = "0";
+    rotationInput.disabled = true;
+  } else {
+    rotationInput.disabled = false;
+  }
+}
+
+function buildAppendSettingWarnings(meta) {
+  const warnings = [];
+  const s = meta.settings;
+  if (!s) return warnings;
+  const generationMode = document.getElementById("generation-mode-select")?.value;
+  const terrain = generationMode === "geo-terrain" || generationMode === "terrain-only";
+  if (s.terrain !== terrain) warnings.push("Terrain setting differs from this world.");
+  if (s.fillground !== document.getElementById("fillground-toggle")?.checked) {
+    warnings.push("Fill ground differs.");
+  }
+  if (s.land_cover !== document.getElementById("land-cover-toggle")?.checked) {
+    warnings.push("Land cover differs.");
+  }
+  const autoGl = isAutoGroundLevelEnabled();
+  const gl = autoGl ? -62 : parseInt(document.getElementById("ground-level")?.value || "-62", 10);
+  if (s.ground_level !== gl || s.auto_ground_level !== autoGl) {
+    warnings.push("Ground level differs.");
+  }
+  if (s.disable_height_limit !== document.getElementById("disable-height-limit-toggle")?.checked) {
+    warnings.push("Height limit setting differs.");
+  }
+  return warnings;
+}
+
+async function loadExistingWorldMetadata(path) {
+  const warnEl = document.getElementById("append-settings-warning");
+  try {
+    const meta = await invoke("gui_read_world_settings", { worldPath: path });
+    if (meta.scale != null) {
+      lockScaleFromMetadata(meta.scale);
+    }
+    const warnings = buildAppendSettingWarnings(meta);
+    if (warnEl) {
+      if (warnings.length > 0) {
+        warnEl.textContent = warnings.join(" ");
+        warnEl.hidden = false;
+      } else {
+        warnEl.hidden = true;
+        warnEl.textContent = "";
+      }
+    }
+    return meta;
+  } catch (err) {
+    unlockScale();
+    if (warnEl) {
+      warnEl.textContent = String(err);
+      warnEl.hidden = false;
+    }
+    throw err;
+  }
+}
+
+function initWorldMode() {
+  const newBtn = document.getElementById("world-mode-new");
+  const existingBtn = document.getElementById("world-mode-existing");
+  const pathInput = document.getElementById("existing-world-path");
+  const browseBtn = document.getElementById("existing-world-browse");
+  if (!newBtn || !existingBtn) return;
+
+  const applyMode = (mode) => {
+    worldMode = mode;
+    localStorage.setItem("arnis-world-mode", mode);
+    newBtn.classList.toggle("world-mode-active", mode === "new");
+    existingBtn.classList.toggle("world-mode-active", mode === "existing");
+    updateWorldModeVisibility();
+    if (mode === "new") {
+      lockRotationForAppend(false);
+      unlockScale();
+      const warnEl = document.getElementById("append-settings-warning");
+      if (warnEl) {
+        warnEl.hidden = true;
+        warnEl.textContent = "";
+      }
+    } else {
+      lockRotationForAppend(true);
+      if (existingWorldPath && pathInput) {
+        pathInput.value = existingWorldPath;
+        loadExistingWorldMetadata(existingWorldPath).catch(() => {});
+      }
+    }
+  };
+
+  newBtn.addEventListener("click", () => applyMode("new"));
+  existingBtn.addEventListener("click", () => applyMode("existing"));
+
+  browseBtn?.addEventListener("click", async () => {
+    try {
+      const picked = await invoke("gui_pick_world_directory", {
+        startPath: existingWorldPath || savePath,
+      });
+      if (picked && picked.trim()) {
+        existingWorldPath = picked.trim();
+        localStorage.setItem("arnis-existing-world-path", existingWorldPath);
+        if (pathInput) pathInput.value = existingWorldPath;
+        await loadExistingWorldMetadata(existingWorldPath);
+      }
+    } catch (err) {
+      console.error("Failed to pick world folder:", err);
+    }
+  });
+
+  applyMode(worldMode);
+  if (existingWorldPath && pathInput) {
+    pathInput.value = existingWorldPath;
+  }
+}
 
 function setWorldNameLabel(text) {
   const label = document.getElementById('world-name-label');
@@ -1573,14 +1728,16 @@ async function startGeneration() {
       return;
     }
 
-    // Auto-create world for Java format
-    if (selectedWorldFormat === 'java') {
+    const isNewWorld =
+      selectedWorldFormat !== "java" || worldMode === "new";
+
+    if (selectedWorldFormat === "java" && worldMode === "new") {
       if (!savePath) {
         console.warn("Cannot create world: save path not set");
         return;
       }
       try {
-        const worldName = await invoke('gui_create_world', { savePath: savePath });
+        const worldName = await invoke("gui_create_world", { savePath: savePath });
         if (worldName) {
           worldPath = worldName;
           setWorldNameLabel(basenameFromPath(worldName));
@@ -1589,6 +1746,22 @@ async function startGeneration() {
         handleWorldSelectionError(error);
         return;
       }
+    } else if (selectedWorldFormat === "java" && worldMode === "existing") {
+      if (!existingWorldPath) {
+        const warnEl = document.getElementById("append-settings-warning");
+        if (warnEl) {
+          warnEl.textContent = "Select an existing Arnis Java world folder first.";
+          warnEl.hidden = false;
+        }
+        return;
+      }
+      try {
+        await loadExistingWorldMetadata(existingWorldPath);
+      } catch {
+        return;
+      }
+      worldPath = existingWorldPath;
+      setWorldNameLabel(basenameFromPath(worldPath));
     }
 
     // Clear any existing world preview since we're generating a new one
@@ -1648,7 +1821,7 @@ async function startGeneration() {
         disableHeightLimit: disable_height_limit,
         awsOnlyElevation: aws_only_elevation,
         bakeLightingEnabled: bake_lighting,
-        isNewWorld: true,
+        isNewWorld: isNewWorld,
         spawnPoint: spawnPoint,
         telemetryConsent: telemetryConsent || false,
         worldFormat: getEffectiveWorldFormat(),

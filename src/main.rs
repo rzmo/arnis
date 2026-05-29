@@ -37,6 +37,7 @@ mod test_utilities;
 mod version_check;
 mod water_depth;
 mod world_editor;
+mod world_metadata;
 mod world_utils;
 
 use args::Args;
@@ -53,6 +54,7 @@ mod gui;
 mod progress {
     pub fn emit_gui_error(_message: &str) {}
     pub fn emit_gui_progress_update(_progress: f64, _message: &str) {}
+    pub fn emit_gui_progress_update_detail(_progress: f64, _message: &str, _detail: &str) {}
     pub fn emit_map_preview_ready() {}
     pub fn emit_show_in_folder(_path: &str) {}
     pub fn is_running_with_gui() -> bool {
@@ -140,6 +142,12 @@ fn run_cli() {
             world_path.display().to_string().bright_white().bold()
         );
         (world_path, Some(world_name))
+    } else if let Some(ref append_path) = args.append_to_world {
+        println!(
+            "Appending to existing world at: {}",
+            append_path.display().to_string().bright_white().bold()
+        );
+        (append_path.clone(), None)
     } else {
         // Java: create a new world in the provided output directory
         let base_dir = args.path.clone().unwrap();
@@ -171,6 +179,27 @@ fn run_cli() {
         (world_path, None)
     };
 
+    let append_mode = args.append_to_world.is_some();
+    let (anchor_lat, anchor_lng) = if append_mode {
+        let meta = world_metadata::read_world_metadata(&generation_path).unwrap_or_else(|e| {
+            eprintln!("{} {}", "Error:".red().bold(), e);
+            std::process::exit(1);
+        });
+        world_metadata::validate_append_hard(&meta, args.scale, args.rotation).unwrap_or_else(|e| {
+            eprintln!("{} {}", "Error:".red().bold(), e);
+            std::process::exit(1);
+        });
+        if let Some(ref stored) = meta.settings {
+            let requested = world_metadata::WorldGenerationSettings::from_args(&args);
+            for warning in world_metadata::append_setting_warnings(stored, &requested) {
+                eprintln!("{} {}", "Warning:".yellow().bold(), warning);
+            }
+        }
+        (meta.anchor_lat, meta.anchor_lng)
+    } else {
+        (args.bbox.max().lat(), args.bbox.min().lng())
+    };
+
     // Fetch data
     let raw_data = match &args.file {
         Some(file) => retrieve_data::fetch_data_from_file(file),
@@ -187,7 +216,14 @@ fn run_cli() {
 
     // Parse raw data
     let (mut parsed_elements, mut xzbbox, outline_suppression) =
-        osm_parser::parse_osm_data(raw_data, args.bbox, args.scale, args.debug);
+        osm_parser::parse_osm_data_anchored(
+            raw_data,
+            args.bbox,
+            args.scale,
+            anchor_lat,
+            anchor_lng,
+            args.debug,
+        );
 
     // Fetch supplementary building data from Overture Maps
     {
@@ -266,8 +302,13 @@ fn run_cli() {
                 std::process::exit(1);
             });
 
-            let (transformer, pre_rot_bbox) =
-                CoordTransformer::llbbox_to_xzbbox(&args.bbox, args.scale).unwrap_or_else(|e| {
+            let (transformer, pre_rot_bbox) = CoordTransformer::llbbox_to_xzbbox_anchored(
+                &args.bbox,
+                args.scale,
+                anchor_lat,
+                anchor_lng,
+            )
+            .unwrap_or_else(|e| {
                     eprintln!(
                         "{} Failed to convert spawn point: {}",
                         "Error:".red().bold(),
@@ -313,6 +354,9 @@ fn run_cli() {
         spawn_point,
         luanti_game,
         ground_level: args.ground_level,
+        append: append_mode,
+        anchor_lat,
+        anchor_lng,
     };
 
     // Generate world

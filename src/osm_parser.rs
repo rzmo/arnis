@@ -2,7 +2,7 @@ use crate::clipping::clip_way_to_bbox;
 use crate::coordinate_system::cartesian::{XZBBox, XZPoint};
 use crate::coordinate_system::geographic::{LLBBox, LLPoint};
 use crate::coordinate_system::transformation::CoordTransformer;
-use crate::progress::emit_gui_progress_update;
+use crate::progress::{emit_gui_progress_update, emit_gui_progress_update_detail};
 use colored::Colorize;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -236,14 +236,27 @@ pub fn parse_osm_data(
     scale: f64,
     debug: bool,
 ) -> (Vec<ProcessedElement>, XZBBox, OutlineSuppression) {
+    parse_osm_data_anchored(osm_data, bbox, scale, bbox.max().lat(), bbox.min().lng(), debug)
+}
+
+/// Parse OSM data with an explicit world geographic anchor (for append mode).
+pub fn parse_osm_data_anchored(
+    osm_data: OsmData,
+    bbox: LLBBox,
+    scale: f64,
+    anchor_lat: f64,
+    anchor_lng: f64,
+    debug: bool,
+) -> (Vec<ProcessedElement>, XZBBox, OutlineSuppression) {
     println!("{} Parsing data...", "[2/7]".bold());
     println!("Bounding box: {bbox:?}");
-    emit_gui_progress_update(5.0, "Parsing data...");
+    emit_gui_progress_update_detail(5.0, "Parsing data...", "");
 
     // Deserialize the JSON data into the OSMData structure
     let data = SplitOsmData::from_raw_osm_data(osm_data);
 
-    let (coord_transformer, xzbbox) = CoordTransformer::llbbox_to_xzbbox(&bbox, scale)
+    let (coord_transformer, xzbbox) =
+        CoordTransformer::llbbox_to_xzbbox_anchored(&bbox, scale, anchor_lat, anchor_lng)
         .unwrap_or_else(|e| {
             eprintln!("Error in defining coordinate transformation:\n{e}");
             panic!();

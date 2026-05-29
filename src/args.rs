@@ -24,6 +24,10 @@ pub struct Args {
     #[arg(long = "output-dir", alias = "path")]
     pub path: Option<PathBuf>,
 
+    /// Append a new area into an existing Arnis Java world directory (must contain metadata.json).
+    #[arg(long = "append-to-world")]
+    pub append_to_world: Option<PathBuf>,
+
     /// Generate a Bedrock Edition world (.mcworld) instead of Java Edition
     #[arg(long)]
     pub bedrock: bool,
@@ -143,13 +147,27 @@ pub fn validate_args(args: &Args) -> Result<(), String> {
                 return Err(format!("Path is not a directory: {}", path.display()));
             }
         }
+    } else if args.append_to_world.is_some() {
+        let world = args.append_to_world.as_ref().unwrap();
+        if !world.exists() || !world.is_dir() {
+            return Err(format!(
+                "Append target does not exist or is not a directory: {}",
+                world.display()
+            ));
+        }
+        if !world.join("metadata.json").exists() {
+            return Err(format!(
+                "Append target is missing metadata.json: {}",
+                world.display()
+            ));
+        }
     } else {
         // Java: path is required. If it exists, it must be a directory.
         // If it doesn't exist, create_new_world will create it.
         match &args.path {
             None => {
                 return Err(
-                    "The --output-dir argument is required for Java Edition. Provide the directory where the world should be created. Use --bedrock for Bedrock Edition output."
+                    "The --output-dir argument is required for Java Edition (or use --append-to-world). Provide the directory where the world should be created. Use --bedrock for Bedrock Edition output."
                         .to_string(),
                 );
             }

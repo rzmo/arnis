@@ -3,18 +3,25 @@
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: #e7e8ea;
+  background-color: #0e0f12;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-  
-  /* CSS Variables for consistent theming */
+
+  --bg: #0e0f12;
+  --surface: #17181c;
+  --surface-2: #1e2025;
+  --surface-3: #26282e;
+  --text: #e7e8ea;
+  --text-dim: #9aa0a6;
   --primary-accent: #fecc44;
   --primary-accent-dark: #e6b73d;
-  --primary-accent-light: #fff2cc;
+  --primary-accent-light: rgba(254, 204, 68, 0.15);
+  --focus-ring: 0 0 0 2px rgba(254, 204, 68, 0.45);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 html, body {
@@ -22,6 +29,8 @@ html, body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+  color: var(--text);
+  background-color: var(--bg);
 }
 
 p {
@@ -80,10 +89,10 @@ a:hover {
 }
 
 .section {
-  background: #575757;
+  background: var(--surface);
   padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
 }
 
 .map-box,
@@ -97,7 +106,7 @@ a:hover {
   min-height: 420px;
   padding: 0;
   overflow: hidden;
-  background: #575757;
+  background: var(--surface);
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -184,21 +193,21 @@ p {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: none;
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
-  color: #0f0f0f;
-  background-color: #ffffff;
+  color: var(--text);
+  background-color: var(--surface-2);
   cursor: pointer;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   margin-top: 10px;
   width: auto;
 }
 
 button:hover {
-  border-color: #656565;
+  background-color: var(--surface-3);
 }
 
 #selected-directory {
@@ -219,7 +228,7 @@ button:hover {
 .progress-bar-container {
   flex: 1;
   height: 20px;
-  background-color: #e0e0e0;
+  background-color: var(--surface-2);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -234,7 +243,7 @@ button:hover {
 .progress-bar {
   height: 100%;
   width: 0%;
-  background-color: #4caf50;
+  background-color: var(--primary-accent);
   transition: width 0.4s;
 }
 
@@ -253,27 +262,6 @@ button:hover {
 
 .footer-link:hover {
   color: #b3b3b3;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #333333;
-  }
-
-  p {
-    color: #ececec;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-    border-style: inherit;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
 }
 
 .controls-box button {
@@ -352,16 +340,16 @@ button:hover {
 }
 
 .modal-content {
-  background-color: #717171;
+  background-color: var(--surface-2);
   padding: 20px;
-  border: 1px solid #797979;
-  border-radius: 10px;
+  border: none;
+  border-radius: 12px;
   width: 400px;
   max-height: calc(90vh - 40px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-soft);
 }
 
 .settings-scrollable {
@@ -473,14 +461,8 @@ button:hover {
 }
 
 .btn-secondary {
-  background-color: #e0e0e0;
-}
-
-@media (prefers-color-scheme: dark) {
-  .btn-secondary {
-    background-color: #3a3a3a;
-    color: #ffffff;
-  }
+  background-color: var(--surface-3);
+  color: var(--text);
 }
 
 /* Update / release-notes modal */
@@ -695,32 +677,31 @@ button:hover {
   margin-bottom: 5px;
 }
 
-#bbox-coords {
+#bbox-coords,
+#save-path,
+#save-path-input,
+#cache-path-input,
+.existing-world-input,
+.settings-control input[type="text"],
+.settings-control input[type="number"] {
   width: 100%;
-  padding: 5px;
-  border: 1px solid #fecc44;
-  border-radius: 4px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
   font-size: 14px;
+  color: var(--text);
+  background-color: var(--surface-2);
+  box-sizing: border-box;
 }
 
-#bbox-coords:focus {
+#bbox-coords:focus,
+#save-path:focus,
+#save-path-input:focus,
+#cache-path-input:focus,
+.existing-world-input:focus,
+.settings-control input:focus {
   outline: none;
-  border-color: #fecc44;
-  box-shadow: 0 0 5px #fecc44;
-}
-
-#save-path {
-  width: 100%;
-  padding: 5px;
-  border: 1px solid #fecc44;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-#save-path:focus {
-  outline: none;
-  border-color: #fecc44;
-  box-shadow: 0 0 5px #fecc44;
+  box-shadow: var(--focus-ring);
 }
 
 /* Settings Modal Layout */
@@ -728,11 +709,10 @@ button:hover {
   font-size: 0.7em;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: #c0c0c0;
-  margin-top: 10px;
-  margin-bottom: 4px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-dim);
+  margin-top: 14px;
+  margin-bottom: 8px;
+  padding-bottom: 0;
   text-align: left;
 }
 
@@ -847,20 +827,21 @@ button:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background-color: rgba(254, 204, 68, 0.3);
-  color: #fecc44;
-  font-size: 11px;
-  font-weight: bold;
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
   cursor: help;
   position: relative;
   flex-shrink: 0;
 }
 
+.tooltip-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 .tooltip-icon:hover {
-  background-color: rgba(254, 204, 68, 0.5);
+  color: var(--primary-accent);
 }
 
 /* Arnis-styled tooltip box.
@@ -985,10 +966,10 @@ button:hover {
 }
 
 .save-path-browse {
-  background: none;
-  border: 1px solid #fecc44;
-  border-radius: 0 4px 4px 0;
-  padding: 0 6px;
+  background: var(--surface-3);
+  border: none;
+  border-radius: 0 8px 8px 0;
+  padding: 0 10px;
   margin-top: 0;
   box-shadow: none;
   cursor: pointer;
@@ -1000,13 +981,13 @@ button:hover {
 }
 
 .save-path-browse:hover {
-  background: rgba(254, 204, 68, 0.15);
+  background: var(--surface-2);
 }
 
 .save-path-browse svg {
-  width: 14px;
-  height: 14px;
-  fill: #fecc44;
+  width: 16px;
+  height: 16px;
+  fill: var(--primary-accent);
 }
 
 /* Clear-cache button: compact golden-outline button that sits in the
@@ -1016,10 +997,10 @@ button:hover {
    label — keeps the row visually consistent with the checkbox and
    slider rows next to it. */
 .clear-cache-button {
-  background: none;
-  border: 1px solid #fecc44;
-  border-radius: 4px;
-  color: #fecc44;
+  background: var(--surface-2);
+  border: none;
+  border-radius: 8px;
+  color: var(--primary-accent);
   padding: 2px 14px;
   margin: 0;
   box-shadow: none;
@@ -1100,87 +1081,36 @@ button:hover {
 }
 
 /* Generation mode dropdown styling */
-.generation-mode-dropdown {
-  width: 100%;
-  max-width: 180px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid #fecc44;
-  background-color: #ffffff;
-  color: #0f0f0f;
-  appearance: menulist;
-  cursor: pointer;
-  font-size: 15px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-.generation-mode-dropdown option {
-  padding: 5px;
-  font-size: 15px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .generation-mode-dropdown {
-    background-color: #0f0f0f98;
-    color: #ffffff;
-    border: 1px solid #fecc44;
-  }
-}
-
-/* Language dropdown styling */
-.language-dropdown {
-  width: 100%;
-  max-width: 180px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid #fecc44;
-  background-color: #ffffff;
-  color: #0f0f0f;
-  appearance: menulist;
-  cursor: pointer;
-  font-size: 15px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-.language-dropdown option {
-  padding: 5px;
-  font-size: 15px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .language-dropdown {
-    background-color: #0f0f0f98;
-    color: #ffffff;
-    border: 1px solid #fecc44;
-  }
-}
-
-/* Theme dropdown styling */
+.generation-mode-dropdown,
+.language-dropdown,
 .theme-dropdown {
   width: 100%;
   max-width: 180px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid #fecc44;
-  background-color: #ffffff;
-  color: #0f0f0f;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  background-color: var(--surface-2);
+  color: var(--text);
   appearance: menulist;
   cursor: pointer;
   font-size: 15px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+.generation-mode-dropdown:focus,
+.language-dropdown:focus,
+.theme-dropdown:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.generation-mode-dropdown option,
+.language-dropdown option,
 .theme-dropdown option {
   padding: 5px;
   font-size: 15px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .theme-dropdown {
-    background-color: #0f0f0f98;
-    color: #ffffff;
-    border: 1px solid #fecc44;
-  }
+  background-color: var(--surface-2);
+  color: var(--text);
 }
 
 .button-block-row {
@@ -1226,11 +1156,90 @@ button:hover {
 }
 
 .settings-button svg {
-  stroke: white;
+  fill: currentColor;
+  color: var(--text);
   width: 22px;
   height: 22px;
   min-width: 22px;
   min-height: 22px;
+}
+
+.world-mode-row {
+  display: flex;
+  width: 100%;
+}
+
+.world-mode-btn {
+  flex: 1;
+  margin-top: 0;
+  border-radius: 0;
+  background-color: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.85em;
+  padding: 0.55em 0.5em;
+  box-shadow: none;
+}
+
+.world-mode-btn.world-mode-active {
+  background-color: var(--primary-accent);
+  color: #0f0f0f;
+  font-weight: 600;
+}
+
+.existing-world-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px 8px;
+  box-sizing: border-box;
+}
+
+.existing-world-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.append-settings-warning {
+  margin: 0 8px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--primary-accent);
+  text-align: left;
+}
+
+.progress-subdetail-text {
+  display: block;
+  font-size: 0.85em;
+  color: var(--text-dim);
+  min-height: 1.1em;
+  margin-bottom: 4px;
+}
+
+.close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.close-button:hover {
+  color: var(--text);
+  background: var(--surface-3);
+  border-radius: 8px;
+}
+
+.close-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Logo Animation */

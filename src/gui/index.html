@@ -37,9 +37,20 @@
                   <span id="world-name-label" class="world-name-label" data-placeholder="true">No world generated yet</span>
                 </button>
                 <button type="button" class="settings-button" onclick="openSettings()" aria-label="Settings">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.639.395.986.57.182.088.277.228.297.348l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.347-.176.674-.357.986-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.606 7.606 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.507 7.507 0 0 0-.985-.57c-.183-.087-.277-.227-.296-.348l-.179-1.071a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clip-rule="evenodd"/></svg>
                 </button>
               </div>
+              <div class="button-block-row world-mode-row" id="world-mode-row">
+                <button type="button" id="world-mode-new" class="world-mode-btn world-mode-active" data-localize="world_mode_new">New world</button>
+                <button type="button" id="world-mode-existing" class="world-mode-btn" data-localize="world_mode_existing">Add to existing</button>
+              </div>
+              <div class="existing-world-row" id="existing-world-row" hidden>
+                <input type="text" id="existing-world-path" class="existing-world-input" readonly data-localize-placeholder="existing_world_placeholder" placeholder="Select an Arnis Java world folder">
+                <button type="button" id="existing-world-browse" class="save-path-browse" title="Browse..." aria-label="Browse for world folder">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.5 21v-2.25a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25V21m3-12.75h13.5M10.5 6.75h3M4.5 21h15M5.25 8.25h13.5a.75.75 0 0 0 .75-.75V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v.75a.75.75 0 0 0 .75.75Z"/></svg>
+                </button>
+              </div>
+              <p id="append-settings-warning" class="append-settings-warning" hidden></p>
               <div class="button-block-row">
                 <button type="button" id="format-java" class="format-toggle-btn format-active" onclick="setWorldFormat('java')">
                   Java
@@ -58,6 +69,7 @@
           <div class="progress-section">
             <img src="" alt="" class="secret-parrot" id="secret-parrot">
             <span id="progress-info" class="progress-info-text"></span>
+            <span id="progress-subdetail" class="progress-subdetail-text"></span>
             <div class="progress-row">
               <div class="progress-bar-container">
                 <div class="progress-bar" id="progress-bar"></div>
@@ -74,7 +86,9 @@
       <div class="modal-content">
         <div class="settings-header">
           <h2 data-localize="customization_settings">Settings</h2>
-          <span class="close-button" onclick="closeSettings()">&times;</span>
+          <button type="button" class="close-button" onclick="closeSettings()" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
         </div>
 
         <div class="settings-scrollable">
@@ -85,7 +99,7 @@
         <div class="settings-row">
           <label for="generation-mode-select">
             <span data-localize="generation_mode">Generation Mode</span>
-            <span class="tooltip-icon" data-tooltip="Choose what to generate: buildings/roads with terrain, just objects, or terrain only">?</span>
+            <span class="tooltip-icon" data-tooltip="Choose what to generate: buildings/roads with terrain, just objects, or terrain only"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <select id="generation-mode-select" name="generation-mode-select" class="generation-mode-dropdown">
@@ -100,7 +114,7 @@
         <div class="settings-row">
           <label for="roof-toggle">
             <span data-localize="roof">Roof Generation</span>
-            <span class="tooltip-icon" data-tooltip="Generate roofs on buildings">?</span>
+            <span class="tooltip-icon" data-tooltip="Generate roofs on buildings"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="roof-toggle" name="roof-toggle" checked>
@@ -111,7 +125,7 @@
         <div class="settings-row">
           <label for="land-cover-toggle">
             <span data-localize="land_cover">Land Cover</span>
-            <span class="tooltip-icon" data-tooltip="Fetch satellite land cover data to classify terrain type. Requires terrain to be enabled.">?</span>
+            <span class="tooltip-icon" data-tooltip="Fetch satellite land cover data to classify terrain type. Requires terrain to be enabled."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="land-cover-toggle" name="land-cover-toggle" checked>
@@ -122,7 +136,7 @@
         <div class="settings-row">
           <label for="use-3d-toggle">
             <span data-localize="three_dmr">Use 3D Models</span>
-            <span class="tooltip-icon" data-tooltip="Substitute community-contributed 3D models (from the OpenStreetMap 3D Model Repository and Wikimedia Commons) for famous landmarks such as the Eiffel Tower, instead of generic building shapes.">?</span>
+            <span class="tooltip-icon" data-tooltip="Substitute community-contributed 3D models (from the OpenStreetMap 3D Model Repository and Wikimedia Commons) for famous landmarks such as the Eiffel Tower, instead of generic building shapes."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="use-3d-toggle" name="use-3d-toggle" checked>
@@ -133,7 +147,7 @@
         <div class="settings-row">
           <label for="interior-toggle">
             <span data-localize="interior">Interior Generation</span>
-            <span class="tooltip-icon" data-tooltip="Generate interior details inside buildings (experimental)">?</span>
+            <span class="tooltip-icon" data-tooltip="Generate interior details inside buildings (experimental)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="interior-toggle" name="interior-toggle">
@@ -144,7 +158,7 @@
         <div class="settings-row">
           <label for="fillground-toggle">
             <span data-localize="fillground">Fill Ground</span>
-            <span class="tooltip-icon" data-tooltip="Fill the ground below the surface">?</span>
+            <span class="tooltip-icon" data-tooltip="Fill the ground below the surface"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="fillground-toggle" name="fillground-toggle">
@@ -158,7 +172,7 @@
         <div class="settings-row">
           <label for="disable-height-limit-toggle">
             <span data-localize="disable_height_limit">Extend build height</span>
-            <span class="tooltip-icon" data-tooltip="Bundles a pack that raises the build height for 1:1 terrain. Java 1.21.4+ / Bedrock 1.21.40+ (experimental, no Realms)">?</span>
+            <span class="tooltip-icon" data-tooltip="Bundles a pack that raises the build height for 1:1 terrain. Java 1.21.4+ / Bedrock 1.21.40+ (experimental, no Realms)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="disable-height-limit-toggle" name="disable-height-limit-toggle">
@@ -169,7 +183,7 @@
         <div class="settings-row">
           <label for="aws-only-elevation-toggle">
             <span data-localize="aws_only_elevation">Legacy Terrain</span>
-            <span class="tooltip-icon" data-tooltip="Skip the high-resolution regional elevation providers and use the legacy terrain. Faster generation, lower terrain detail.">?</span>
+            <span class="tooltip-icon" data-tooltip="Skip the high-resolution regional elevation providers and use the legacy terrain. Faster generation, lower terrain detail."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="aws-only-elevation-toggle" name="aws-only-elevation-toggle">
@@ -180,7 +194,7 @@
         <div class="settings-row">
           <label for="bake-lighting-toggle">
             <span data-localize="bake_lighting">Bake lighting</span>
-            <span class="tooltip-icon" data-tooltip="Precompute lighting so distant chunks render lit in LOD mods (Voxy/Chunky) without visiting them. Not needed for vanilla; slower generation.">?</span>
+            <span class="tooltip-icon" data-tooltip="Precompute lighting so distant chunks render lit in LOD mods (Voxy/Chunky) without visiting them. Not needed for vanilla; slower generation."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="bake-lighting-toggle" name="bake-lighting-toggle">
@@ -191,7 +205,7 @@
         <div class="settings-row">
           <label for="scale-value-slider">
             <span data-localize="world_scale">World Scale</span>
-            <span class="tooltip-icon" data-tooltip="Scale factor for the generated world (1.0 = real-world scale)">?</span>
+            <span class="tooltip-icon" data-tooltip="Scale factor for the generated world (1.0 = real-world scale)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="range" id="scale-value-slider" name="scale-value-slider" min="0.30" max="2.5" step="0.1" value="1">
@@ -203,7 +217,7 @@
         <div class="settings-row">
           <label>
             <span data-localize="ground_level">Ground Level</span>
-            <span class="tooltip-icon" data-tooltip-key="tooltip_ground_level" data-tooltip="Elevation floor for the map area, not street height. See the calculator below.">?</span>
+            <span class="tooltip-icon" data-tooltip-key="tooltip_ground_level" data-tooltip="Elevation floor for the map area, not street height. See the calculator below."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control ground-level-mode-control">
             <button type="button" id="ground-level-mode-manual" class="format-toggle-btn format-active" data-localize="ground_level_mode_manual">Manual</button>
@@ -230,7 +244,7 @@
                 <span data-localize="ground_level_target">Target Y</span>
                 <input type="number" id="ground-level-target" step="1" placeholder="64">
               </label>
-              <span class="tooltip-icon ground-level-helper-tooltip" data-tooltip-key="tooltip_ground_level_helper" data-tooltip="F3 measured and target Y; formula -62 + (target - measured).">?</span>
+              <span class="tooltip-icon ground-level-helper-tooltip" data-tooltip-key="tooltip_ground_level_helper" data-tooltip="F3 measured and target Y; formula -62 + (target - measured)."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
             </div>
             <div class="ground-level-helper-result" id="ground-level-helper-result" hidden>
               <span id="ground-level-helper-text"></span>
@@ -241,7 +255,7 @@
         <div id="ground-level-auto" class="ground-level-auto" hidden>
           <p class="ground-level-auto-hint">
             <span data-localize="ground_level_auto_hint">Computed from elevation when generation starts so average terrain is near Y 64. Requires a terrain generation mode.</span>
-            <span class="tooltip-icon ground-level-auto-tooltip" data-tooltip-key="tooltip_ground_level_auto" data-tooltip="Auto runs once at generation start.">?</span>
+            <span class="tooltip-icon ground-level-auto-tooltip" data-tooltip-key="tooltip_ground_level_auto" data-tooltip="Auto runs once at generation start."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </p>
         </div>
 
@@ -249,7 +263,7 @@
         <div class="settings-row">
           <label for="rotation-angle-input">
             <span data-localize="rotation_angle">Rotation Angle</span>
-            <span class="tooltip-icon" data-tooltip="Rotate the map to align roads/buildings with Minecraft's coordinate system. Use the line tool to draw a reference line.">?</span>
+            <span class="tooltip-icon" data-tooltip="Rotate the map to align roads/buildings with Minecraft's coordinate system. Use the line tool to draw a reference line."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control rotation-control">
             <input type="number" id="rotation-angle-input" min="-90" max="90" step="0.01" value="0">
@@ -261,7 +275,7 @@
         <div class="settings-row">
           <label for="enable-luanti-toggle">
             <span>Luanti (experimental)</span>
-            <span class="tooltip-icon" data-tooltip="Show Luanti (Mineclonia) as an output format. Experimental: block mappings and lighting may be imperfect.">?</span>
+            <span class="tooltip-icon" data-tooltip="Show Luanti (Mineclonia) as an output format. Experimental: block mappings and lighting may be imperfect."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="enable-luanti-toggle" name="enable-luanti-toggle">
@@ -275,7 +289,7 @@
         <div class="settings-row">
           <label for="bbox-coords">
             <span data-localize="custom_bounding_box">Bounding Box</span>
-            <span class="tooltip-icon" data-tooltip="Manually enter coordinates (lat,lng,lat,lng) or use map selection">?</span>
+            <span class="tooltip-icon" data-tooltip="Manually enter coordinates (lat,lng,lat,lng) or use map selection"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="text" id="bbox-coords" name="bbox-coords" maxlength="55" placeholder="Format: lat,lng,lat,lng">
@@ -286,7 +300,7 @@
         <div class="settings-row">
           <label for="tile-theme-select">
             <span data-localize="map_theme">Map Theme</span>
-            <span class="tooltip-icon" data-tooltip="Visual style of the map picker">?</span>
+            <span class="tooltip-icon" data-tooltip="Visual style of the map picker"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <select id="tile-theme-select" name="tile-theme-select" class="theme-dropdown">
@@ -307,12 +321,12 @@
         <div class="settings-row">
           <label for="save-path-input">
             <span data-localize="save_path">Save Path</span>
-            <span class="tooltip-icon" data-tooltip="Directory where new Minecraft Java worlds are created">?</span>
+            <span class="tooltip-icon" data-tooltip="Directory where new Minecraft Java worlds are created"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control save-path-control">
             <input type="text" id="save-path-input" name="save-path-input" class="save-path-input" placeholder="Minecraft saves directory">
             <button type="button" id="save-path-browse" class="save-path-browse" title="Browse...">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.5 21v-2.25a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25V21m3-12.75h13.5M10.5 6.75h3M4.5 21h15M5.25 8.25h13.5a.75.75 0 0 0 .75-.75V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v.75a.75.75 0 0 0 .75.75Z"/></svg>
             </button>
           </div>
         </div>
@@ -321,7 +335,7 @@
         <div class="settings-row">
           <label for="language-select">
             <span data-localize="language">Language</span>
-            <span class="tooltip-icon" data-tooltip="Interface language">?</span>
+            <span class="tooltip-icon" data-tooltip="Interface language"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <select id="language-select" name="language-select" class="language-dropdown">
@@ -351,7 +365,7 @@
         <div class="settings-row">
           <label for="telemetry-toggle" style="white-space: nowrap;">
             <span data-localize="anonymous_crash_reports">Anonymous Crash Reports</span>
-            <span class="tooltip-icon" data-tooltip="Send anonymous crash data to help improve Arnis">?</span>
+            <span class="tooltip-icon" data-tooltip="Send anonymous crash data to help improve Arnis"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <input type="checkbox" id="telemetry-toggle" name="telemetry-toggle">
@@ -362,12 +376,12 @@
         <div class="settings-row">
           <label for="cache-path-input">
             <span data-localize="cache_path">Tile Cache Path</span>
-            <span class="tooltip-icon" data-tooltip="Where elevation and land-cover tiles are stored. Defaults to your OS cache folder (AppData/Local on Windows). Change this if you are low on space on that drive.">?</span>
+            <span class="tooltip-icon" data-tooltip="Where elevation and land-cover tiles are stored. Defaults to your OS cache folder (AppData/Local on Windows). Change this if you are low on space on that drive."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control save-path-control">
             <input type="text" id="cache-path-input" name="cache-path-input" class="save-path-input" placeholder="OS default">
             <button type="button" id="cache-path-browse" class="save-path-browse" title="Browse...">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.5 21v-2.25a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25V21m3-12.75h13.5M10.5 6.75h3M4.5 21h15M5.25 8.25h13.5a.75.75 0 0 0 .75-.75V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v.75a.75.75 0 0 0 .75.75Z"/></svg>
             </button>
           </div>
         </div>
@@ -376,7 +390,7 @@
         <div class="settings-row">
           <label for="clear-cache-button">
             <span data-localize="clear_tile_cache">Clear Tile Cache</span>
-            <span class="tooltip-icon" data-tooltip="Delete every cached elevation and land-cover tile. Frees disk space; next generation re-downloads from source.">?</span>
+            <span class="tooltip-icon" data-tooltip="Delete every cached elevation and land-cover tile. Frees disk space; next generation re-downloads from source."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm11.378-3.917a.75.75 0 1 0-1.256-.832L9.24 12.75h-.75a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132Zm-.53 4.22a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .53-.22l2.132-2.132a.75.75 0 1 0-1.256-.832L13.06 15.75h-.75a.75.75 0 0 0-.53.22Z" clip-rule="evenodd"/></svg></span>
           </label>
           <div class="settings-control">
             <button type="button" id="clear-cache-button" class="clear-cache-button" data-localize="clear_tile_cache_button">Clear</button>
@@ -414,7 +428,9 @@
       <div class="modal-content">
         <div class="settings-header">
           <h2>Help improve Arnis</h2>
-          <span class="close-button" onclick="rejectTelemetry()">&times;</span>
+          <button type="button" class="close-button" onclick="rejectTelemetry()" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
         </div>
         <p style="text-align:left; margin-top:12px; margin-bottom: -5px;color:#ececec;">
           We’d like to collect anonymous usage data like crashes and performance to make Arnis more stable and faster.
@@ -432,7 +448,9 @@
       <div class="modal-content">
         <div class="settings-header">
           <h2 data-localize="license_and_credits">License and Credits</h2>
-          <span class="close-button" onclick="closeLicense()">&times;</span>
+          <button type="button" class="close-button" onclick="closeLicense()" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
         </div>
         <div id="license-content" class="license-scrollable" style="font-size: 0.85em; line-height: 1.3; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
           Loading...
@@ -445,7 +463,9 @@
       <div class="modal-content update-modal-content">
         <div class="settings-header">
           <h2 id="update-modal-title" data-localize="update_modal_title">What's new in Arnis</h2>
-          <span class="close-button" onclick="closeUpdateModal()">&times;</span>
+          <button type="button" class="close-button" onclick="closeUpdateModal()" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
         </div>
         <div id="update-modal-body" class="update-modal-body license-scrollable">
           <span data-localize="loading">Loading...</span>

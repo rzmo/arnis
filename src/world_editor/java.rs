@@ -2,10 +2,12 @@
 //!
 //! This module handles saving worlds in the Java Edition Anvil (.mca) format.
 
+use super::chunk_merge::merge_chunk_nbt;
 use super::common::{Chunk, ChunkToModify, Section};
 use super::WorldEditor;
+use crate::coordinate_system::cartesian::{XZBBox, XZPoint};
 use crate::block_definitions::GRASS_BLOCK;
-use crate::progress::emit_gui_progress_update;
+use crate::progress::emit_gui_progress_update_detail;
 use colored::Colorize;
 use fastanvil::Region;
 use fastnbt::{ByteArray, LongArray, Value};
@@ -43,8 +45,8 @@ fn get_base_chunk_sections() -> &'static [Section] {
 use crate::telemetry::{send_log, LogLevel};
 
 impl<'a> WorldEditor<'a> {
-    /// Creates a region file for the given region coordinates.
-    pub(super) fn create_region(
+    /// Opens an existing region file for merge, or creates a fresh truncated one.
+    pub(super) fn open_or_create_region(
         &self,
         region_x: i32,
         region_z: i32,
@@ -52,12 +54,16 @@ impl<'a> WorldEditor<'a> {
         let region_dir = self.world_dir.join("region");
         let out_path = region_dir.join(format!("r.{}.{}.mca", region_x, region_z));
 
-        // Ensure region directory exists before creating region files
         std::fs::create_dir_all(&region_dir)?;
+
+        if self.append_mode && out_path.exists() {
+            let region_file = File::options().read(true).write(true).open(&out_path)?;
+            return Ok(Region::from_stream(region_file)?);
+        }
 
         const REGION_TEMPLATE: &[u8] = include_bytes!("../../assets/minecraft/region.template");
 
-        let mut region_file: File = File::options()
+        let mut region_file = File::options()
             .read(true)
             .write(true)
             .create(true)
@@ -103,7 +109,7 @@ impl<'a> WorldEditor<'a> {
     /// Returns an error if any region fails to save (e.g. disk full).
     pub(super) fn save_java(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("{} Saving world...", "[7/7]".bold());
-        emit_gui_progress_update(90.0, "Saving world...");
+        emit_gui_progress_update_detail(90.0, "Saving world...", "");
 
         // Save metadata with error handling
         if let Err(e) = self.save_metadata() {
@@ -159,7 +165,12 @@ impl<'a> WorldEditor<'a> {
                 let update_interval = (total_regions / 10).max(1);
                 if regions_done.is_multiple_of(update_interval) || regions_done == total_regions {
                     let progress = 90.0 + (regions_done as f64 / total_regions as f64) * 9.0;
-                    emit_gui_progress_update(progress, "Saving world...");
+                    let detail = format!("{regions_done} / {total_regions} regions");
+                    crate::progress::emit_gui_progress_update_detail(
+                        progress,
+                        "Saving world...",
+                        &detail,
+                    );
                 }
 
                 save_pb.inc(1);
@@ -174,31 +185,23 @@ impl<'a> WorldEditor<'a> {
         Ok(())
     }
 
-    /// Saves a single region to disk.
-    ///
-    /// Optimized for new world creation, writes chunks directly without reading existing data.
-    /// This assumes we're creating a fresh world, not modifying an existing one.
+    /// Saves a single region to disk (fresh truncate or merge into an existing file).
     pub(super) fn save_single_region(
         &self,
         region_x: i32,
         region_z: i32,
         region_to_modify: &super::common::RegionToModify,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut region = self.create_region(region_x, region_z)?;
+        let mut region = self.open_or_create_region(region_x, region_z)?;
         let mut ser_buffer = Vec::with_capacity(8192);
 
-        // World-center latitude drives temperature-based biome variants (taiga
-        // vs forest vs jungle) at chunk-build time. Cheap to recompute.
         let center_lat = (self.llbbox.min().lat() + self.llbbox.max().lat()) * 0.5;
         let ground_ref = self.ground.as_deref();
 
-        // First pass: write all chunks that have content
         for (&(chunk_x, chunk_z), chunk_to_modify) in &region_to_modify.chunks {
             if !chunk_to_modify.sections.is_empty() || !chunk_to_modify.other.is_empty() {
                 let abs_chunk_x = chunk_x + (region_x * 32);
                 let abs_chunk_z = chunk_z + (region_z * 32);
-                // Create chunk directly, we're writing to a fresh region file
-                // so there's no existing data to preserve
                 let chunk = Chunk {
                     sections: chunk_to_modify.sections().collect(),
                     x_pos: abs_chunk_x,
@@ -216,21 +219,44 @@ impl<'a> WorldEditor<'a> {
                 let chunk_nbt = create_chunk_nbt(&chunk, self.bake_lighting, &biome_value);
                 ser_buffer.clear();
                 fastnbt::to_writer(&mut ser_buffer, &chunk_nbt)?;
-                region.write_chunk(chunk_x as usize, chunk_z as usize, &ser_buffer)?;
+
+                let final_bytes: Vec<u8> = if self.append_mode {
+                    if let Ok(Some(existing)) =
+                        region.read_chunk(chunk_x as usize, chunk_z as usize)
+                    {
+                        merge_chunk_nbt(&existing, &chunk)?
+                    } else {
+                        ser_buffer.clone()
+                    }
+                } else {
+                    ser_buffer.clone()
+                };
+
+                region.write_chunk(chunk_x as usize, chunk_z as usize, &final_bytes)?;
             }
         }
 
-        // Second pass: ensure all chunks exist (fill with base layer if not)
+        let fill_all = !self.append_mode;
         for chunk_x in 0..32 {
             for chunk_z in 0..32 {
                 let abs_chunk_x = chunk_x + (region_x * 32);
                 let abs_chunk_z = chunk_z + (region_z * 32);
 
-                // Check if chunk exists in our modifications
-                let chunk_exists = region_to_modify.chunks.contains_key(&(chunk_x, chunk_z));
+                let modified = region_to_modify.chunks.contains_key(&(chunk_x, chunk_z));
+                if modified {
+                    continue;
+                }
 
-                // If chunk doesn't exist, create it with base layer
-                if !chunk_exists {
+                let on_disk = region
+                    .read_chunk(chunk_x as usize, chunk_z as usize)
+                    .ok()
+                    .flatten()
+                    .is_some();
+                if on_disk {
+                    continue;
+                }
+
+                if fill_all || chunk_intersects_bbox(abs_chunk_x, abs_chunk_z, self.xzbbox) {
                     let biome_value = crate::biome::build_chunk_biome_nbt(
                         abs_chunk_x,
                         abs_chunk_z,
@@ -250,6 +276,15 @@ impl<'a> WorldEditor<'a> {
 
         Ok(())
     }
+}
+
+fn chunk_intersects_bbox(chunk_x: i32, chunk_z: i32, bbox: &XZBBox) -> bool {
+    let base_x = chunk_x * 16;
+    let base_z = chunk_z * 16;
+    bbox.contains(&XZPoint::new(base_x, base_z))
+        || bbox.contains(&XZPoint::new(base_x + 15, base_z))
+        || bbox.contains(&XZPoint::new(base_x, base_z + 15))
+        || bbox.contains(&XZPoint::new(base_x + 15, base_z + 15))
 }
 
 /// Helper function to get entity coordinates

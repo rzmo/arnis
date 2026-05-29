@@ -4,7 +4,7 @@
 //! producing .mcworld files that can be imported into Minecraft Bedrock.
 
 use super::common::{ChunkToModify, SectionToModify, WorldToModify};
-use super::WorldMetadata;
+use crate::world_metadata::WorldMetadata;
 use crate::bedrock_block_map::{
     to_bedrock_block_with_properties, BedrockBlock, BedrockBlockStateValue,
 };
@@ -726,6 +726,10 @@ impl BedrockWriter {
                 max_geo_lat: llbbox.max().lat(),
                 min_geo_lon: llbbox.min().lng(),
                 max_geo_lon: llbbox.max().lng(),
+                scale: 1.0,
+                anchor_lat: llbbox.max().lat(),
+                anchor_lng: llbbox.min().lng(),
+                settings: None,
             },
             format: "bedrock-mcworld",
             chunk_count,

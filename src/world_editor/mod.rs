@@ -9,6 +9,7 @@
 //! - `java` - Java Edition Anvil format saving
 //! - `bedrock` - Bedrock Edition .mcworld format saving
 
+mod chunk_merge;
 mod common;
 mod java;
 mod luanti;
@@ -95,21 +96,6 @@ pub enum WorldFormat {
     LuantiWorld,
 }
 
-/// Metadata saved with the world
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct WorldMetadata {
-    pub min_mc_x: i32,
-    pub max_mc_x: i32,
-    pub min_mc_z: i32,
-    pub max_mc_z: i32,
-
-    pub min_geo_lat: f64,
-    pub max_geo_lat: f64,
-    pub min_geo_lon: f64,
-    pub max_geo_lon: f64,
-}
-
 /// The main world editor struct for placing blocks and saving worlds.
 ///
 /// The lifetime `'a` is tied to the `XZBBox` reference, which defines
@@ -144,6 +130,11 @@ pub struct WorldEditor<'a> {
     luanti_game: LuantiGame,
     /// Bake per-chunk lighting (Java) for off-disk LOD renderers; off by default.
     bake_lighting: bool,
+    /// When true, merge into existing region files instead of truncating them.
+    append_mode: bool,
+    /// Scale and settings written to metadata.json on save.
+    generation_scale: f64,
+    generation_settings: Option<crate::world_metadata::WorldGenerationSettings>,
 }
 
 impl<'a> WorldEditor<'a> {
@@ -168,6 +159,9 @@ impl<'a> WorldEditor<'a> {
             luanti_ground_level: -62,
             luanti_game: LuantiGame::Mineclonia,
             bake_lighting: false,
+            append_mode: false,
+            generation_scale: 1.0,
+            generation_settings: None,
         }
     }
 
@@ -198,7 +192,23 @@ impl<'a> WorldEditor<'a> {
             luanti_ground_level: -62,
             luanti_game: LuantiGame::Mineclonia,
             bake_lighting: false,
+            append_mode: false,
+            generation_scale: 1.0,
+            generation_settings: None,
         }
+    }
+
+    pub fn set_append_mode(&mut self, append: bool) {
+        self.append_mode = append;
+    }
+
+    pub fn set_generation_metadata(
+        &mut self,
+        scale: f64,
+        settings: crate::world_metadata::WorldGenerationSettings,
+    ) {
+        self.generation_scale = scale;
+        self.generation_settings = Some(settings);
     }
 
     /// Creates a new WorldEditor configured for Luanti output.
@@ -228,6 +238,9 @@ impl<'a> WorldEditor<'a> {
             luanti_ground_level: ground_level,
             luanti_game: game,
             bake_lighting: false,
+            append_mode: false,
+            generation_scale: 1.0,
+            generation_settings: None,
         }
     }
 
@@ -1214,33 +1227,34 @@ impl<'a> WorldEditor<'a> {
 
     /// Saves world metadata to a JSON file
     pub(crate) fn save_metadata(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let metadata_path = self.world_dir.join("metadata.json");
+        let settings = self
+            .generation_settings
+            .clone()
+            .unwrap_or_else(|| crate::world_metadata::WorldGenerationSettings {
+                terrain: false,
+                fillground: false,
+                land_cover: true,
+                ground_level: -62,
+                auto_ground_level: false,
+                disable_height_limit: false,
+                use_3d: false,
+                rotation: 0.0,
+                interior: true,
+                roof: true,
+                aws_only_elevation: false,
+                bake_lighting: self.bake_lighting,
+                arnis_version: env!("CARGO_PKG_VERSION").to_string(),
+            });
 
-        let mut file = File::create(&metadata_path).map_err(|e| {
-            format!(
-                "Failed to create metadata file at {}: {}",
-                metadata_path.display(),
-                e
-            )
-        })?;
-
-        let metadata = WorldMetadata {
-            min_mc_x: self.xzbbox.min_x(),
-            max_mc_x: self.xzbbox.max_x(),
-            min_mc_z: self.xzbbox.min_z(),
-            max_mc_z: self.xzbbox.max_z(),
-
-            min_geo_lat: self.llbbox.min().lat(),
-            max_geo_lat: self.llbbox.max().lat(),
-            min_geo_lon: self.llbbox.min().lng(),
-            max_geo_lon: self.llbbox.max().lng(),
-        };
-
-        let contents = serde_json::to_string(&metadata)
-            .map_err(|e| format!("Failed to serialize metadata to JSON: {}", e))?;
-
-        write!(&mut file, "{}", contents)
-            .map_err(|e| format!("Failed to write metadata to file: {}", e))?;
+        crate::world_metadata::write_world_metadata(
+            &self.world_dir,
+            &self.llbbox,
+            self.xzbbox,
+            self.generation_scale,
+            settings,
+            self.append_mode,
+        )
+        .map_err(|e| -> Box<dyn std::error::Error> { Box::new(std::io::Error::other(e)) })?;
 
         Ok(())
     }

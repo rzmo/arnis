@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Chunk structure for Java Edition NBT format
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Chunk {
     pub sections: Vec<Section>,

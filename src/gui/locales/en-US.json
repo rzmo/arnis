@@ -74,5 +74,9 @@
   "cache_path": "Tile Cache Path",
   "clear_tile_cache": "Clear Tile Cache",
   "clear_tile_cache_button": "Clear",
-  "anonymous_crash_reports": "Anonymous Crash Reports"
+  "anonymous_crash_reports": "Anonymous Crash Reports",
+  "world_mode_new": "New world",
+  "world_mode_existing": "Add to existing",
+  "existing_world_placeholder": "Select an Arnis Java world folder",
+  "append_settings_warning": "Some generation settings differ from the existing world."
 }

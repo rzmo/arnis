@@ -1217,7 +1217,11 @@ pub fn generate_ground_layer(
 
                     gui_progress_grnd += progress_increment_grnd;
                     if (gui_progress_grnd - last_emitted_progress).abs() > 0.25 {
-                        emit_gui_progress_update(gui_progress_grnd, "");
+                        crate::progress::emit_gui_progress_update_detail(
+                            gui_progress_grnd,
+                            "Generating ground...",
+                            "",
+                        );
                         last_emitted_progress = gui_progress_grnd;
                     }
                 }
